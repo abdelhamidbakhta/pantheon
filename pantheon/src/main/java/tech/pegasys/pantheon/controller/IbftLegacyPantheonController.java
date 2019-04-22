@@ -34,13 +34,13 @@ import tech.pegasys.pantheon.ethereum.chain.GenesisState;
 import tech.pegasys.pantheon.ethereum.chain.MutableBlockchain;
 import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
 import tech.pegasys.pantheon.ethereum.core.Synchronizer;
-import tech.pegasys.pantheon.ethereum.core.TransactionPool;
-import tech.pegasys.pantheon.ethereum.eth.EthProtocol;
+import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthProtocolManager;
 import tech.pegasys.pantheon.ethereum.eth.sync.DefaultSynchronizer;
 import tech.pegasys.pantheon.ethereum.eth.sync.SyncMode;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.sync.state.SyncState;
+import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPool;
 import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPoolFactory;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcApi;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.JsonRpcMethod;
@@ -53,6 +53,7 @@ import tech.pegasys.pantheon.metrics.MetricsSystem;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.Collection;
 import java.util.Map;
 
@@ -65,31 +66,34 @@ public class IbftLegacyPantheonController implements PantheonController<IbftCont
   private final ProtocolContext<IbftContext> context;
   private final GenesisConfigOptions genesisConfigOptions;
   private final Synchronizer synchronizer;
-  private final SubProtocol ethSubProtocol;
-  private final ProtocolManager ethProtocolManager;
+  private final SubProtocol istanbulSubProtocol;
+  private final ProtocolManager istanbulProtocolManager;
   private final KeyPair keyPair;
   private final TransactionPool transactionPool;
   private final Runnable closer;
+  private final PrivacyParameters privacyParameters;
 
   private IbftLegacyPantheonController(
       final ProtocolSchedule<IbftContext> protocolSchedule,
       final ProtocolContext<IbftContext> context,
       final GenesisConfigOptions genesisConfigOptions,
-      final SubProtocol ethSubProtocol,
-      final ProtocolManager ethProtocolManager,
+      final SubProtocol istanbulSubProtocol,
+      final ProtocolManager istanbulProtocolManager,
       final Synchronizer synchronizer,
       final KeyPair keyPair,
       final TransactionPool transactionPool,
+      final PrivacyParameters privacyParameters,
       final Runnable closer) {
 
     this.protocolSchedule = protocolSchedule;
     this.context = context;
     this.genesisConfigOptions = genesisConfigOptions;
-    this.ethSubProtocol = ethSubProtocol;
-    this.ethProtocolManager = ethProtocolManager;
+    this.istanbulSubProtocol = istanbulSubProtocol;
+    this.istanbulProtocolManager = istanbulProtocolManager;
     this.synchronizer = synchronizer;
     this.keyPair = keyPair;
     this.transactionPool = transactionPool;
+    this.privacyParameters = privacyParameters;
     this.closer = closer;
   }
 
@@ -97,13 +101,16 @@ public class IbftLegacyPantheonController implements PantheonController<IbftCont
       final StorageProvider storageProvider,
       final GenesisConfigFile genesisConfig,
       final SynchronizerConfiguration syncConfig,
-      final boolean ottomanTestnetOperation,
+      final EthereumWireProtocolConfiguration ethereumWireProtocolConfiguration,
       final int networkId,
       final KeyPair nodeKeys,
       final Path dataDirectory,
-      final MetricsSystem metricsSystem) {
+      final MetricsSystem metricsSystem,
+      final Clock clock,
+      final int maxPendingTransactions,
+      final PrivacyParameters privacyParameters) {
     final ProtocolSchedule<IbftContext> protocolSchedule =
-        IbftProtocolSchedule.create(genesisConfig.getConfigOptions());
+        IbftProtocolSchedule.create(genesisConfig.getConfigOptions(), privacyParameters);
     final GenesisState genesisState = GenesisState.fromConfig(genesisConfig, protocolSchedule);
     final IbftConfigOptions ibftConfig =
         genesisConfig.getConfigOptions().getIbftLegacyConfigOptions();
@@ -129,52 +136,43 @@ public class IbftLegacyPantheonController implements PantheonController<IbftCont
     final MutableBlockchain blockchain = protocolContext.getBlockchain();
 
     final boolean fastSyncEnabled = syncConfig.syncMode().equals(SyncMode.FAST);
-    final EthProtocolManager ethProtocolManager;
-    final SubProtocol ethSubProtocol;
-    if (ottomanTestnetOperation) {
-      LOG.info("Operating on Ottoman testnet.");
-      ethSubProtocol = Istanbul64Protocol.get();
-      ethProtocolManager =
-          new Istanbul64ProtocolManager(
-              blockchain,
-              protocolContext.getWorldStateArchive(),
-              networkId,
-              fastSyncEnabled,
-              syncConfig.downloaderParallelism(),
-              syncConfig.transactionsParallelism(),
-              syncConfig.computationParallelism(),
-              metricsSystem);
-    } else {
-      ethSubProtocol = EthProtocol.get();
-      ethProtocolManager =
-          new EthProtocolManager(
-              blockchain,
-              protocolContext.getWorldStateArchive(),
-              networkId,
-              fastSyncEnabled,
-              syncConfig.downloaderParallelism(),
-              syncConfig.transactionsParallelism(),
-              syncConfig.computationParallelism(),
-              metricsSystem);
-    }
+    final EthProtocolManager istanbul64ProtocolManager;
+    final SubProtocol istanbul64SubProtocol;
+    LOG.info("Operating on IBFT-1.0 network.");
+    istanbul64SubProtocol = Istanbul64Protocol.get();
+    istanbul64ProtocolManager =
+        new Istanbul64ProtocolManager(
+            blockchain,
+            protocolContext.getWorldStateArchive(),
+            networkId,
+            fastSyncEnabled,
+            syncConfig.downloaderParallelism(),
+            syncConfig.transactionsParallelism(),
+            syncConfig.computationParallelism(),
+            metricsSystem,
+            ethereumWireProtocolConfiguration);
 
     final SyncState syncState =
-        new SyncState(blockchain, ethProtocolManager.ethContext().getEthPeers());
+        new SyncState(blockchain, istanbul64ProtocolManager.ethContext().getEthPeers());
     final Synchronizer synchronizer =
         new DefaultSynchronizer<>(
             syncConfig,
             protocolSchedule,
             protocolContext,
             protocolContext.getWorldStateArchive().getStorage(),
-            ethProtocolManager.ethContext(),
+            istanbul64ProtocolManager.ethContext(),
             syncState,
             dataDirectory,
+            clock,
             metricsSystem);
 
     final Runnable closer =
         () -> {
           try {
             storageProvider.close();
+            if (privacyParameters.isEnabled()) {
+              privacyParameters.getPrivateStorageProvider().close();
+            }
           } catch (final IOException e) {
             LOG.error("Failed to close storage provider", e);
           }
@@ -182,17 +180,24 @@ public class IbftLegacyPantheonController implements PantheonController<IbftCont
 
     final TransactionPool transactionPool =
         TransactionPoolFactory.createTransactionPool(
-            protocolSchedule, protocolContext, ethProtocolManager.ethContext());
+            protocolSchedule,
+            protocolContext,
+            istanbul64ProtocolManager.ethContext(),
+            clock,
+            maxPendingTransactions,
+            metricsSystem,
+            syncState);
 
     return new IbftLegacyPantheonController(
         protocolSchedule,
         protocolContext,
         genesisConfig.getConfigOptions(),
-        ethSubProtocol,
-        ethProtocolManager,
+        istanbul64SubProtocol,
+        istanbul64ProtocolManager,
         synchronizer,
         nodeKeys,
         transactionPool,
+        privacyParameters,
         closer);
   }
 
@@ -218,7 +223,8 @@ public class IbftLegacyPantheonController implements PantheonController<IbftCont
 
   @Override
   public SubProtocolConfiguration subProtocolConfiguration() {
-    return new SubProtocolConfiguration().withSubProtocol(ethSubProtocol, ethProtocolManager);
+    return new SubProtocolConfiguration()
+        .withSubProtocol(istanbulSubProtocol, istanbulProtocolManager);
   }
 
   @Override
@@ -238,7 +244,7 @@ public class IbftLegacyPantheonController implements PantheonController<IbftCont
 
   @Override
   public PrivacyParameters getPrivacyParameters() {
-    return PrivacyParameters.noPrivacy();
+    return privacyParameters;
   }
 
   @Override

@@ -19,13 +19,13 @@ public interface Synchronizer {
 
   void start();
 
+  void stop();
+
   /**
    * @return the status, based on SyncingResult When actively synchronizing blocks, alternatively
    *     empty
    */
   Optional<SyncStatus> getSyncStatus();
-
-  boolean hasSufficientPeers();
 
   long observeSyncStatus(final SyncStatusListener listener);
 

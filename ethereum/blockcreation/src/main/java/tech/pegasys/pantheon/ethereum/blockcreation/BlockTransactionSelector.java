@@ -15,13 +15,13 @@ package tech.pegasys.pantheon.ethereum.blockcreation;
 import tech.pegasys.pantheon.ethereum.chain.Blockchain;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.MutableWorldState;
-import tech.pegasys.pantheon.ethereum.core.PendingTransactions;
-import tech.pegasys.pantheon.ethereum.core.PendingTransactions.TransactionSelectionResult;
 import tech.pegasys.pantheon.ethereum.core.ProcessableBlockHeader;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
 import tech.pegasys.pantheon.ethereum.core.TransactionReceipt;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.core.WorldUpdater;
+import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions;
+import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions.TransactionSelectionResult;
 import tech.pegasys.pantheon.ethereum.mainnet.MainnetBlockProcessor.TransactionReceiptFactory;
 import tech.pegasys.pantheon.ethereum.mainnet.TransactionProcessor;
 import tech.pegasys.pantheon.ethereum.vm.BlockHashLookup;
@@ -31,8 +31,6 @@ import java.util.concurrent.CancellationException;
 import java.util.function.Supplier;
 
 import com.google.common.collect.Lists;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 /**
  * Responsible for extracting transactions from PendingTransactions and determining if the
@@ -56,7 +54,6 @@ import org.apache.logging.log4j.Logger;
  */
 public class BlockTransactionSelector {
 
-  private static final Logger LOG = LogManager.getLogger();
   private final Wei minTransactionGasPrice;
 
   private static final double MIN_BLOCK_OCCUPANCY_RATIO = 0.8;
@@ -168,7 +165,8 @@ public class BlockTransactionSelector {
             processableBlockHeader,
             transaction,
             miningBeneficiary,
-            blockHashLookup);
+            blockHashLookup,
+            false);
 
     if (!result.isInvalid()) {
       worldStateUpdater.commit();

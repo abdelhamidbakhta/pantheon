@@ -91,6 +91,11 @@ public class Transactions {
         .build();
   }
 
+  public EeaSendRawTransactionTransaction deployPrivateSmartContract(
+      final String signedRawPrivateTransaction) {
+    return new EeaSendRawTransactionTransaction(signedRawPrivateTransaction);
+  }
+
   public EeaSendRawTransactionTransaction createPrivateRawTransaction(
       final String signedRawPrivateTransaction) {
     return new EeaSendRawTransactionTransaction(signedRawPrivateTransaction);
@@ -139,8 +144,8 @@ public class Transactions {
   }
 
   public EeaGetTransactionReceiptTransaction getPrivateTransactionReceipt(
-      final String transactionHash, final String publicKey) {
-    return new EeaGetTransactionReceiptTransaction(transactionHash, publicKey);
+      final String transactionHash) {
+    return new EeaGetTransactionReceiptTransaction(transactionHash);
   }
 
   public PermAddNodeTransaction addNodesToWhitelist(final List<URI> enodeList) {

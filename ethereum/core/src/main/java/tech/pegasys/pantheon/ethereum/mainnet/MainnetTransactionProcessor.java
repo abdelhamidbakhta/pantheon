@@ -32,7 +32,6 @@ import tech.pegasys.pantheon.util.bytes.BytesValue;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.OptionalLong;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -143,7 +142,8 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
       final Transaction transaction,
       final Address miningBeneficiary,
       final OperationTracer operationTracer,
-      final BlockHashLookup blockHashLookup) {
+      final BlockHashLookup blockHashLookup,
+      final Boolean isPersistingState) {
     LOG.trace("Starting execution of {}", transaction);
 
     ValidationResult<TransactionInvalidReason> validationResult =
@@ -158,8 +158,7 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
 
     final Address senderAddress = transaction.getSender();
     final MutableAccount sender = worldState.getOrCreate(senderAddress);
-    validationResult =
-        transactionValidator.validateForSender(transaction, sender, OptionalLong.empty());
+    validationResult = transactionValidator.validateForSender(transaction, sender, false);
     if (!validationResult.isValid()) {
       LOG.warn("Invalid transaction: {}", validationResult.getErrorMessage());
       return Result.invalid(validationResult);
@@ -214,6 +213,7 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
               .completer(c -> {})
               .miningBeneficiary(miningBeneficiary)
               .blockHashLookup(blockHashLookup)
+              .isPersistingState(isPersistingState)
               .build();
 
     } else {
@@ -241,6 +241,7 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
               .completer(c -> {})
               .miningBeneficiary(miningBeneficiary)
               .blockHashLookup(blockHashLookup)
+              .isPersistingState(isPersistingState)
               .build();
     }
 

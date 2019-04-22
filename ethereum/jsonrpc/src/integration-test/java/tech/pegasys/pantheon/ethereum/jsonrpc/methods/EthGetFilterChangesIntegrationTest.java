@@ -16,6 +16,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import tech.pegasys.pantheon.crypto.SECP256K1.KeyPair;
 import tech.pegasys.pantheon.ethereum.ProtocolContext;
@@ -26,12 +27,13 @@ import tech.pegasys.pantheon.ethereum.core.BlockBody;
 import tech.pegasys.pantheon.ethereum.core.BlockHeader;
 import tech.pegasys.pantheon.ethereum.core.BlockHeaderTestFixture;
 import tech.pegasys.pantheon.ethereum.core.ExecutionContextTestFixture;
-import tech.pegasys.pantheon.ethereum.core.PendingTransactions;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
-import tech.pegasys.pantheon.ethereum.core.TransactionPool;
-import tech.pegasys.pantheon.ethereum.core.TransactionPool.TransactionBatchAddedListener;
 import tech.pegasys.pantheon.ethereum.core.TransactionReceipt;
 import tech.pegasys.pantheon.ethereum.core.Wei;
+import tech.pegasys.pantheon.ethereum.eth.sync.state.SyncState;
+import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions;
+import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPool;
+import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPool.TransactionBatchAddedListener;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.JsonRpcRequest;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.filter.FilterIdGenerator;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.filter.FilterManager;
@@ -43,6 +45,9 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcError;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcErrorResponse;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcResponse;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcSuccessResponse;
+import tech.pegasys.pantheon.metrics.MetricsSystem;
+import tech.pegasys.pantheon.metrics.noop.NoOpMetricsSystem;
+import tech.pegasys.pantheon.testutil.TestClock;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 import tech.pegasys.pantheon.util.uint.UInt256;
 
@@ -63,13 +68,17 @@ public class EthGetFilterChangesIntegrationTest {
   private final String ETH_METHOD = "eth_getFilterChanges";
   private final String JSON_RPC_VERSION = "2.0";
   private TransactionPool transactionPool;
-  private final PendingTransactions transactions = new PendingTransactions(MAX_TRANSACTIONS);
+  private final MetricsSystem metricsSystem = new NoOpMetricsSystem();
+
+  private final PendingTransactions transactions =
+      new PendingTransactions(MAX_TRANSACTIONS, TestClock.fixed(), metricsSystem);
   private static final int MAX_TRANSACTIONS = 5;
   private static final KeyPair keyPair = KeyPair.generate();
   private final Transaction transaction = createTransaction(1);
   private final JsonRpcParameter parameters = new JsonRpcParameter();
   private FilterManager filterManager;
   private EthGetFilterChanges method;
+  private final SyncState syncState = mock(SyncState.class);
 
   @Before
   public void setUp() {
@@ -81,7 +90,8 @@ public class EthGetFilterChangesIntegrationTest {
             transactions,
             executionContext.getProtocolSchedule(),
             protocolContext,
-            batchAddedListener);
+            batchAddedListener,
+            syncState);
     final BlockchainQueries blockchainQueries =
         new BlockchainQueries(blockchain, protocolContext.getWorldStateArchive());
     filterManager =

@@ -20,12 +20,16 @@ import static org.mockito.Mockito.when;
 
 import tech.pegasys.pantheon.Runner;
 import tech.pegasys.pantheon.RunnerBuilder;
+import tech.pegasys.pantheon.cli.PublicKeySubCommand.KeyLoader;
 import tech.pegasys.pantheon.controller.PantheonController;
+import tech.pegasys.pantheon.crypto.SECP256K1.KeyPair;
+import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcConfiguration;
 import tech.pegasys.pantheon.ethereum.jsonrpc.websocket.WebSocketConfiguration;
 import tech.pegasys.pantheon.ethereum.permissioning.PermissioningConfiguration;
 import tech.pegasys.pantheon.metrics.prometheus.MetricsConfiguration;
+import tech.pegasys.pantheon.services.kvstore.RocksDbConfiguration;
 import tech.pegasys.pantheon.util.BlockImporter;
 
 import java.io.ByteArrayOutputStream;
@@ -67,7 +71,10 @@ public abstract class CommandTestAbstract {
   @Mock Runner mockRunner;
   @Mock PantheonControllerBuilder mockControllerBuilder;
   @Mock SynchronizerConfiguration.Builder mockSyncConfBuilder;
+  @Mock EthereumWireProtocolConfiguration.Builder mockEthereumWireProtocolConfigurationBuilder;
   @Mock SynchronizerConfiguration mockSyncConf;
+  @Mock RocksDbConfiguration.Builder mockRocksDbConfBuilder;
+  @Mock RocksDbConfiguration mockRocksDbConf;
   @Mock PantheonController<?> mockController;
   @Mock BlockImporter mockBlockImporter;
   @Mock Logger mockLogger;
@@ -97,23 +104,34 @@ public abstract class CommandTestAbstract {
     // doReturn used because of generic PantheonController
     Mockito.doReturn(mockController).when(mockControllerBuilder).build();
     when(mockControllerBuilder.synchronizerConfiguration(any())).thenReturn(mockControllerBuilder);
+    when(mockControllerBuilder.ethereumWireProtocolConfiguration(any()))
+        .thenReturn(mockControllerBuilder);
+    when(mockControllerBuilder.rocksDbConfiguration(any())).thenReturn(mockControllerBuilder);
     when(mockControllerBuilder.homePath(any())).thenReturn(mockControllerBuilder);
     when(mockControllerBuilder.ethNetworkConfig(any())).thenReturn(mockControllerBuilder);
-    when(mockControllerBuilder.syncWithOttoman(anyBoolean())).thenReturn(mockControllerBuilder);
     when(mockControllerBuilder.miningParameters(any())).thenReturn(mockControllerBuilder);
-    when(mockControllerBuilder.devMode(anyBoolean())).thenReturn(mockControllerBuilder);
+    when(mockControllerBuilder.maxPendingTransactions(any())).thenReturn(mockControllerBuilder);
     when(mockControllerBuilder.nodePrivateKeyFile(any())).thenReturn(mockControllerBuilder);
     when(mockControllerBuilder.metricsSystem(any())).thenReturn(mockControllerBuilder);
     when(mockControllerBuilder.privacyParameters(any())).thenReturn(mockControllerBuilder);
 
+    when(mockSyncConfBuilder.syncMode(any())).thenReturn(mockSyncConfBuilder);
+    when(mockSyncConfBuilder.maxTrailingPeers(anyInt())).thenReturn(mockSyncConfBuilder);
+    when(mockSyncConfBuilder.fastSyncMinimumPeerCount(anyInt())).thenReturn(mockSyncConfBuilder);
     when(mockSyncConfBuilder.build()).thenReturn(mockSyncConf);
+
+    when(mockEthereumWireProtocolConfigurationBuilder.build())
+        .thenReturn(EthereumWireProtocolConfiguration.defaultConfig());
+
+    when(mockRocksDbConfBuilder.databaseDir(any())).thenReturn(mockRocksDbConfBuilder);
+    when(mockRocksDbConfBuilder.build()).thenReturn(mockRocksDbConf);
 
     when(mockRunnerBuilder.vertx(any())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.pantheonController(any())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.discovery(anyBoolean())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.ethNetworkConfig(any())).thenReturn(mockRunnerBuilder);
-    when(mockRunnerBuilder.discoveryHost(anyString())).thenReturn(mockRunnerBuilder);
-    when(mockRunnerBuilder.discoveryPort(anyInt())).thenReturn(mockRunnerBuilder);
+    when(mockRunnerBuilder.p2pAdvertisedHost(anyString())).thenReturn(mockRunnerBuilder);
+    when(mockRunnerBuilder.p2pListenPort(anyInt())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.maxPeers(anyInt())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.p2pEnabled(anyBoolean())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.jsonRpcConfiguration(any())).thenReturn(mockRunnerBuilder);
@@ -122,6 +140,7 @@ public abstract class CommandTestAbstract {
     when(mockRunnerBuilder.bannedNodeIds(any())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.metricsSystem(any())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.metricsConfiguration(any())).thenReturn(mockRunnerBuilder);
+    when(mockRunnerBuilder.staticNodes(any())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.build()).thenReturn(mockRunner);
   }
 
@@ -142,7 +161,17 @@ public abstract class CommandTestAbstract {
     return parseCommand(System.in, args);
   }
 
+  protected CommandLine.Model.CommandSpec parseCommand(
+      final KeyLoader keyLoader, final String... args) {
+    return parseCommand(keyLoader, System.in, args);
+  }
+
   protected CommandLine.Model.CommandSpec parseCommand(final InputStream in, final String... args) {
+    return parseCommand(f -> KeyPair.generate(), in, args);
+  }
+
+  private CommandLine.Model.CommandSpec parseCommand(
+      final KeyLoader keyLoader, final InputStream in, final String... args) {
     // turn off ansi usage globally in picocli
     System.setProperty("picocli.ansi", "false");
 
@@ -152,7 +181,10 @@ public abstract class CommandTestAbstract {
             mockBlockImporter,
             mockRunnerBuilder,
             mockControllerBuilder,
-            mockSyncConfBuilder);
+            mockSyncConfBuilder,
+            mockEthereumWireProtocolConfigurationBuilder,
+            mockRocksDbConfBuilder,
+            keyLoader);
 
     // parse using Ansi.OFF to be able to assert on non formatted output results
     pantheonCommand.parse(
@@ -166,19 +198,31 @@ public abstract class CommandTestAbstract {
   @CommandLine.Command
   static class TestPantheonCommand extends PantheonCommand {
     @CommandLine.Spec CommandLine.Model.CommandSpec spec;
+    private final KeyLoader keyLoader;
+
+    @Override
+    protected KeyLoader getKeyLoader() {
+      return keyLoader;
+    }
 
     TestPantheonCommand(
         final Logger mockLogger,
         final BlockImporter mockBlockImporter,
         final RunnerBuilder mockRunnerBuilder,
         final PantheonControllerBuilder mockControllerBuilder,
-        final SynchronizerConfiguration.Builder mockSyncConfBuilder) {
+        final SynchronizerConfiguration.Builder mockSyncConfBuilder,
+        final EthereumWireProtocolConfiguration.Builder mockEthereumConfigurationMockBuilder,
+        final RocksDbConfiguration.Builder mockRocksDbConfBuilder,
+        final KeyLoader keyLoader) {
       super(
           mockLogger,
           mockBlockImporter,
           mockRunnerBuilder,
           mockControllerBuilder,
-          mockSyncConfBuilder);
+          mockSyncConfBuilder,
+          mockEthereumConfigurationMockBuilder,
+          mockRocksDbConfBuilder);
+      this.keyLoader = keyLoader;
     }
   }
 }

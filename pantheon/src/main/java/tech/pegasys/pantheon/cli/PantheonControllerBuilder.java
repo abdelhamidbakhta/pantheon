@@ -12,38 +12,55 @@
  */
 package tech.pegasys.pantheon.cli;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static tech.pegasys.pantheon.controller.KeyPairUtil.loadKeyPair;
-import static tech.pegasys.pantheon.controller.PantheonController.DATABASE_PATH;
 
 import tech.pegasys.pantheon.config.GenesisConfigFile;
 import tech.pegasys.pantheon.controller.PantheonController;
 import tech.pegasys.pantheon.crypto.SECP256K1.KeyPair;
 import tech.pegasys.pantheon.ethereum.core.MiningParameters;
 import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
+import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
+import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions;
 import tech.pegasys.pantheon.ethereum.storage.StorageProvider;
 import tech.pegasys.pantheon.ethereum.storage.keyvalue.RocksDbStorageProvider;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
+import tech.pegasys.pantheon.services.kvstore.RocksDbConfiguration;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Clock;
 
 public class PantheonControllerBuilder {
 
   private SynchronizerConfiguration synchronizerConfiguration;
+  private EthereumWireProtocolConfiguration ethereumWireProtocolConfiguration;
+  private RocksDbConfiguration rocksDbConfiguration;
   private Path homePath;
   private EthNetworkConfig ethNetworkConfig;
-  private boolean syncWithOttoman;
   private MiningParameters miningParameters;
-  private boolean devMode;
   private File nodePrivateKeyFile;
   private MetricsSystem metricsSystem;
   private PrivacyParameters privacyParameters;
+  private Integer maxPendingTransactions = PendingTransactions.MAX_PENDING_TRANSACTIONS;
 
   public PantheonControllerBuilder synchronizerConfiguration(
       final SynchronizerConfiguration synchronizerConfiguration) {
     this.synchronizerConfiguration = synchronizerConfiguration;
+    return this;
+  }
+
+  public PantheonControllerBuilder ethereumWireProtocolConfiguration(
+      final EthereumWireProtocolConfiguration ethereumWireProtocolConfiguration) {
+    this.ethereumWireProtocolConfiguration = ethereumWireProtocolConfiguration;
+    return this;
+  }
+
+  public PantheonControllerBuilder rocksDbConfiguration(
+      final RocksDbConfiguration rocksDbConfiguration) {
+    this.rocksDbConfiguration = rocksDbConfiguration;
     return this;
   }
 
@@ -57,18 +74,8 @@ public class PantheonControllerBuilder {
     return this;
   }
 
-  public PantheonControllerBuilder syncWithOttoman(final boolean syncWithOttoman) {
-    this.syncWithOttoman = syncWithOttoman;
-    return this;
-  }
-
   public PantheonControllerBuilder miningParameters(final MiningParameters miningParameters) {
     this.miningParameters = miningParameters;
-    return this;
-  }
-
-  public PantheonControllerBuilder devMode(final boolean devMode) {
-    this.devMode = devMode;
     return this;
   }
 
@@ -82,37 +89,50 @@ public class PantheonControllerBuilder {
     return this;
   }
 
+  public PantheonControllerBuilder maxPendingTransactions(final Integer maxPendingTransactions) {
+    this.maxPendingTransactions = maxPendingTransactions;
+    return this;
+  }
+
   public PantheonControllerBuilder privacyParameters(final PrivacyParameters privacyParameters) {
     this.privacyParameters = privacyParameters;
     return this;
   }
 
   public PantheonController<?> build() throws IOException {
+    checkNotNull(nodePrivateKeyFile, "Missing node private key file");
+    checkNotNull(synchronizerConfiguration, "Missing synchronizer configuration");
+    checkNotNull(rocksDbConfiguration, "Missing rocksdb configuration");
+    checkNotNull(homePath, "Missing home path");
+    checkNotNull(ethNetworkConfig, "Missing Ethereum network config");
+    checkNotNull(miningParameters, "Missing mining parameters");
+    checkNotNull(metricsSystem, "Missing metrics system");
+    checkNotNull(privacyParameters, "Missing privacy parameters");
+    checkNotNull(ethereumWireProtocolConfiguration, "Missing Ethereum wire protocol config");
+
     // instantiate a controller with mainnet config if no genesis file is defined
     // otherwise use the indicated genesis file
     final KeyPair nodeKeys = loadKeyPair(nodePrivateKeyFile);
+    privacyParameters.setSigningKeyPair(nodeKeys);
 
     final StorageProvider storageProvider =
-        RocksDbStorageProvider.create(homePath.resolve(DATABASE_PATH), metricsSystem);
+        RocksDbStorageProvider.create(rocksDbConfiguration, metricsSystem);
 
-    final GenesisConfigFile genesisConfigFile;
-    if (devMode) {
-      genesisConfigFile = GenesisConfigFile.development();
-    } else {
-      final String genesisConfig = ethNetworkConfig.getGenesisConfig();
-      genesisConfigFile = GenesisConfigFile.fromConfig(genesisConfig);
-    }
-
+    final String genesisConfig = ethNetworkConfig.getGenesisConfig();
+    final GenesisConfigFile genesisConfigFile = GenesisConfigFile.fromConfig(genesisConfig);
+    final Clock clock = Clock.systemUTC();
     return PantheonController.fromConfig(
         genesisConfigFile,
         synchronizerConfiguration,
+        ethereumWireProtocolConfiguration,
         storageProvider,
-        syncWithOttoman,
         ethNetworkConfig.getNetworkId(),
         miningParameters,
         nodeKeys,
         metricsSystem,
         privacyParameters,
-        homePath);
+        homePath,
+        clock,
+        maxPendingTransactions);
   }
 }

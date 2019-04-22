@@ -31,16 +31,19 @@ dependencies {
   implementation project(':ethereum:rlp')
   implementation project(':ethereum:trie')
   implementation project(':ethereum:permissioning')
-  implementation project(':metrics')
+  implementation project(':metrics:core')
   implementation project(':services:kvstore')
-  implementation project(':services:queue')
+  implementation project(':services:pipeline')
+  implementation project(':services:tasks')
 
+  implementation 'info.picocli:picocli'
   implementation 'io.vertx:vertx-core'
   implementation 'com.google.guava:guava'
 
   compileOnly 'org.openjdk.jmh:jmh-generator-annprocess'
 
   testImplementation project(':config')
+  testImplementation project(path: ':config', configuration: 'testSupportArtifacts')
   testImplementation project(':crypto')
   testImplementation project(path: ':ethereum:core', configuration: 'testArtifacts')
   testImplementation project(path: ':ethereum:core', configuration: 'testSupportArtifacts')
@@ -53,4 +56,6 @@ dependencies {
   testImplementation 'org.mockito:mockito-core'
 
   jmhImplementation project(path: ':ethereum:core', configuration: 'testSupportArtifacts')
+
+  integrationTestImplementation project(path: ':config', configuration: 'testSupportArtifacts')
 }

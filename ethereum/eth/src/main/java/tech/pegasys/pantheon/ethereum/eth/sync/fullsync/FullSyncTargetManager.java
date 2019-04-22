@@ -15,14 +15,12 @@ package tech.pegasys.pantheon.ethereum.eth.sync.fullsync;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import tech.pegasys.pantheon.ethereum.ProtocolContext;
+import tech.pegasys.pantheon.ethereum.chain.MutableBlockchain;
 import tech.pegasys.pantheon.ethereum.core.BlockHeader;
-import tech.pegasys.pantheon.ethereum.eth.manager.ChainState;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthContext;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthPeer;
-import tech.pegasys.pantheon.ethereum.eth.manager.EthPeers;
 import tech.pegasys.pantheon.ethereum.eth.sync.SyncTargetManager;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
-import tech.pegasys.pantheon.ethereum.eth.sync.state.SyncState;
 import tech.pegasys.pantheon.ethereum.eth.sync.state.SyncTarget;
 import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
 import tech.pegasys.pantheon.ethereum.p2p.wire.messages.DisconnectMessage.DisconnectReason;
@@ -38,23 +36,20 @@ import org.apache.logging.log4j.Logger;
 class FullSyncTargetManager<C> extends SyncTargetManager<C> {
 
   private static final Logger LOG = LogManager.getLogger();
-  private final SynchronizerConfiguration config;
   private final ProtocolContext<C> protocolContext;
   private final EthContext ethContext;
-  private final SyncState syncState;
+  private final BetterSyncTargetEvaluator betterSyncTargetEvaluator;
 
   FullSyncTargetManager(
       final SynchronizerConfiguration config,
       final ProtocolSchedule<C> protocolSchedule,
       final ProtocolContext<C> protocolContext,
       final EthContext ethContext,
-      final SyncState syncState,
       final MetricsSystem metricsSystem) {
-    super(config, protocolSchedule, protocolContext, ethContext, syncState, metricsSystem);
-    this.config = config;
+    super(config, protocolSchedule, protocolContext, ethContext, metricsSystem);
     this.protocolContext = protocolContext;
     this.ethContext = ethContext;
-    this.syncState = syncState;
+    betterSyncTargetEvaluator = new BetterSyncTargetEvaluator(config, ethContext.getEthPeers());
   }
 
   @Override
@@ -82,10 +77,7 @@ class FullSyncTargetManager<C> extends SyncTargetManager<C> {
       return completedFuture(Optional.empty());
     } else {
       final EthPeer bestPeer = maybeBestPeer.get();
-      final long peerHeight = bestPeer.chainState().getEstimatedHeight();
-      final UInt256 peerTd = bestPeer.chainState().getBestBlock().getTotalDifficulty();
-      if (peerTd.compareTo(syncState.chainHeadTotalDifficulty()) <= 0
-          && peerHeight <= syncState.chainHeadNumber()) {
+      if (isSyncTargetReached(bestPeer)) {
         // We're caught up to our best peer, try again when a new peer connects
         LOG.debug("Caught up to best peer: " + bestPeer.chainState().getEstimatedHeight());
         return completedFuture(Optional.empty());
@@ -95,37 +87,18 @@ class FullSyncTargetManager<C> extends SyncTargetManager<C> {
   }
 
   @Override
-  public boolean shouldSwitchSyncTarget(final SyncTarget currentTarget) {
-    final EthPeer currentPeer = currentTarget.peer();
-    final ChainState currentPeerChainState = currentPeer.chainState();
-    final Optional<EthPeer> maybeBestPeer = ethContext.getEthPeers().bestPeer();
+  public boolean isSyncTargetReached(final EthPeer peer) {
+    final long peerHeight = peer.chainState().getEstimatedHeight();
+    final UInt256 peerTd = peer.chainState().getBestBlock().getTotalDifficulty();
+    final MutableBlockchain blockchain = protocolContext.getBlockchain();
 
-    return maybeBestPeer
-        .map(
-            bestPeer -> {
-              if (EthPeers.BEST_CHAIN.compare(bestPeer, currentPeer) <= 0) {
-                // Our current target is better or equal to the best peer
-                return false;
-              }
-              // Require some threshold to be exceeded before switching targets to keep some
-              // stability
-              // when multiple peers are in range of each other
-              final ChainState bestPeerChainState = bestPeer.chainState();
-              final long heightDifference =
-                  bestPeerChainState.getEstimatedHeight()
-                      - currentPeerChainState.getEstimatedHeight();
-              if (heightDifference == 0 && bestPeerChainState.getEstimatedHeight() == 0) {
-                // Only check td if we don't have a height metric
-                final UInt256 tdDifference =
-                    bestPeerChainState
-                        .getBestBlock()
-                        .getTotalDifficulty()
-                        .minus(currentPeerChainState.getBestBlock().getTotalDifficulty());
-                return tdDifference.compareTo(config.downloaderChangeTargetThresholdByTd()) > 0;
-              }
-              return heightDifference > config.downloaderChangeTargetThresholdByHeight();
-            })
-        .orElse(false);
+    return peerTd.compareTo(blockchain.getChainHead().getTotalDifficulty()) <= 0
+        && peerHeight <= blockchain.getChainHeadBlockNumber();
+  }
+
+  @Override
+  public boolean shouldSwitchSyncTarget(final SyncTarget currentTarget) {
+    return betterSyncTargetEvaluator.shouldSwitchSyncTarget(currentTarget.peer());
   }
 
   @Override

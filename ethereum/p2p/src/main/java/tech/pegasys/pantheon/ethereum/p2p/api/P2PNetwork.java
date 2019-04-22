@@ -14,8 +14,7 @@ package tech.pegasys.pantheon.ethereum.p2p.api;
 
 import tech.pegasys.pantheon.ethereum.p2p.peers.Peer;
 import tech.pegasys.pantheon.ethereum.p2p.wire.Capability;
-import tech.pegasys.pantheon.ethereum.p2p.wire.PeerInfo;
-import tech.pegasys.pantheon.ethereum.permissioning.NodeWhitelistController;
+import tech.pegasys.pantheon.util.enode.EnodeURL;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -77,25 +76,20 @@ public interface P2PNetwork extends Closeable {
   boolean addMaintainConnectionPeer(final Peer peer);
 
   /**
-   * Trigger that an external clock can use to make the network attempt connections to maintained
-   * peers
+   * Removes a {@link Peer} from a list indicating any existing efforts to connect to a given peer
+   * should be removed, and if connected, the peer should be disconnected
+   *
+   * @param peer The peer to which connections are not longer required
+   * @return boolean representing whether or not the peer has been disconnected, or if it was not
+   *     currently connected.
    */
-  void checkMaintainedConnectionPeers();
+  boolean removeMaintainedConnectionPeer(final Peer peer);
 
   /** Stops the P2P network layer. */
   void stop();
 
   /** Blocks until the P2P network layer has stopped. */
   void awaitStop();
-
-  Optional<? extends Peer> getAdvertisedPeer();
-
-  /**
-   * Returns {@link PeerInfo} object for this node
-   *
-   * @return the PeerInfo for this node.
-   */
-  PeerInfo getLocalPeerInfo();
 
   /**
    * Checks if the node is listening for network connections
@@ -111,10 +105,14 @@ public interface P2PNetwork extends Closeable {
    */
   boolean isP2pEnabled();
 
+  /** @return Return true if peer discovery is enabled. */
+  boolean isDiscoveryEnabled();
+
   /**
-   * Returns the node whitelist controller
+   * Returns the EnodeURL used to identify this peer in the network.
    *
-   * @return an instance of NodeWhitelistController, if set.
+   * @return the enodeURL associated with this node if P2P has been enabled. Returns empty
+   *     otherwise.
    */
-  Optional<NodeWhitelistController> getNodeWhitelistController();
+  Optional<EnodeURL> getLocalEnode();
 }

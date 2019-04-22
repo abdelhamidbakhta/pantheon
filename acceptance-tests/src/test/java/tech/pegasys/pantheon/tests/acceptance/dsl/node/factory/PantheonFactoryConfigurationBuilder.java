@@ -34,11 +34,12 @@ public class PantheonFactoryConfigurationBuilder {
   private String name;
   private MiningParameters miningParameters =
       new MiningParametersTestBuilder().enabled(false).build();
-  private PrivacyParameters privacyParameters = PrivacyParameters.noPrivacy();
+  private PrivacyParameters privacyParameters = PrivacyParameters.DEFAULT;
   private JsonRpcConfiguration jsonRpcConfiguration = JsonRpcConfiguration.createDefault();
   private WebSocketConfiguration webSocketConfiguration = WebSocketConfiguration.createDefault();
   private MetricsConfiguration metricsConfiguration = MetricsConfiguration.createDefault();
   private Optional<PermissioningConfiguration> permissioningConfiguration = Optional.empty();
+  private Optional<String> keyFilePath = Optional.empty();
   private boolean devMode = true;
   private GenesisConfigProvider genesisConfigProvider = ignore -> Optional.empty();
   private Boolean p2pEnabled = true;
@@ -142,6 +143,11 @@ public class PantheonFactoryConfigurationBuilder {
     return this;
   }
 
+  public PantheonFactoryConfigurationBuilder setKeyFilePath(final String keyFilePath) {
+    this.keyFilePath = Optional.of(keyFilePath);
+    return this;
+  }
+
   public PantheonFactoryConfigurationBuilder setDevMode(final boolean devMode) {
     this.devMode = devMode;
     return this;
@@ -172,6 +178,7 @@ public class PantheonFactoryConfigurationBuilder {
         webSocketConfiguration,
         metricsConfiguration,
         permissioningConfiguration,
+        keyFilePath,
         devMode,
         genesisConfigProvider,
         p2pEnabled,

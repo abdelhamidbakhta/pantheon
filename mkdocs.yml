@@ -11,7 +11,7 @@
 
 # Project information
 site_name: Pantheon
-site_url: https://docs.pantheon.pegasys.tech/
+site_url: https://docs.pantheon.pegasys.tech/en/stable/
 site_description: Pantheon Java Ethereum client documentation.
 site_author: Pantheon community
 copyright: Pantheon and its documentation are licensed under Apache 2.0 license /
@@ -22,15 +22,17 @@ extra:
   support:
     gitter: https://gitter.im/PegaSysEng/pantheon
     email: support@pegasys.tech
+    pegasys_website: https://pegasys.tech/
+    issues: https://pegasys1.atlassian.net/secure/Dashboard.jspa?selectPageId=10000
   google:
-    analytics_id: 'UA-117921923-2'
     site_verification: 'za1cLzyS6LXDGO-pMzvfQdYTZ0Zc67uZtY0asA4YXZ0'
-
+    tag_manager: 'GTM-5B7N84J'
+  hotjar:
+    site_id: '1161123'
 
 # Repository
 repo_name: PegaSysEng/pantheon
-repo_url: https://github.com/PegaSysEng/pantheon
-edit_uri: ""
+repo_url: https://github.com/PegaSysEng/pantheon/
 
 theme:
     name: material
@@ -46,12 +48,15 @@ nav:
         - Installation Overview: Installation/Overview.md
         - Install Binary Distribution: Installation/Install-Binaries.md
         - Build from Source: Installation/Build-From-Source.md
+    - Architecture:
+        - Overview: Architecture/Overview.md
     - Getting Started:
         - Getting Started Overview: Getting-Started/Getting-Started.md
         - Starting Pantheon: Getting-Started/Starting-Pantheon.md
         - Running Pantheon from Docker Image: Getting-Started/Run-Docker-Image.md
     - Tutorials:
         - Private Network Quickstart: Tutorials/Private-Network-Quickstart.md
+        - Private Network Quickstart On Azure: Tutorials/Azure/Azure-Private-Network-Quickstart.md
         - Create a Private Network using Ethash (Pow): Tutorials/Create-Private-Network.md
         - Create a Private Network using Clique (PoA): Tutorials/Create-Private-Clique-Network.md
         - Create a Private Network using IBFT 2.0 (PoA): Tutorials/Create-IBFT-Network.md
@@ -61,31 +66,49 @@ nav:
         - Comparing PoA Consensus Protocols: Consensus-Protocols/Comparing-PoA.md
         - Clique: Consensus-Protocols/Clique.md
         - IBFT 2.0: Consensus-Protocols/IBFT.md
+        - Quorum IBFT 1.0: Consensus-Protocols/QuorumIBFT.md
     - JSON-RPC API:
         - Overview: JSON-RPC-API/JSON-RPC-API.md
         - Using the JSON-RPC API: JSON-RPC-API/Using-JSON-RPC-API.md
         - Authentication: JSON-RPC-API/Authentication.md
     - Configuring Pantheon:
+        - Network vs Node Configuration: Configuring-Pantheon/Network-vs-Node.md
         - Configuration File: Configuring-Pantheon/Using-Configuration-File.md
         - Network ID and Chain ID: Configuring-Pantheon/NetworkID-And-ChainID.md
+        - Free Gas Networks: Configuring-Pantheon/FreeGas.md
         - Contracts in Genesis: Configuring-Pantheon/Contracts-in-Genesis.md
         - Node Keys: Configuring-Pantheon/Node-Keys.md
-        - Networking: Configuring-Pantheon/Networking.md
         - Accounts for Testing: Configuring-Pantheon/Accounts-for-Testing.md
         - Logging: Configuring-Pantheon/Logging.md
-        - Bootnodes: Configuring-Pantheon/Bootnodes.md
         - Passing JVM Options: Configuring-Pantheon/Passing-JVM-Options.md
+    - Networking:
+      - Bootnodes: Configuring-Pantheon/Networking/Bootnodes.md
+      - Configuring Ports: Configuring-Pantheon/Networking/Configuring-Ports.md
+      - Managing Peers: Configuring-Pantheon/Networking/Managing-Peers.md
+    - Privacy:
+        - Overview: Privacy/Privacy-Overview.md
+        - Processing Private Transactions: Privacy/Private-Transaction-Processing.md
+        - Configuring a Privacy-Enabled Network: Privacy/Configuring-Privacy.md
     - Permissions:
-        - Nodes and Accounts Whitelists: Permissions/Permissioning.md
+        - Overview: Permissions/Permissioning-Overview.md
+        - Local Permissions: Permissions/Local-Permissioning.md
     - Using Pantheon:
+        - Transactions:
+          - Creating and Sending Transactions: Using-Pantheon/Transactions/Transactions.md
+          - Transaction Pool: Using-Pantheon/Transactions/Transaction-Pool.md
+        - Using Truffle with Panthen: Using-Pantheon/Truffle.md
         - Events and Logs:
           - Overview: Using-Pantheon/Events-and-Logs.md
           - Accessing Logs Using JSON-RPC API: Using-Pantheon/Accessing-Logs-Using-JSON-RPC.md
-        - Creating and Sending Transactions: Using-Pantheon/Transactions.md
         - Using Wallets for Account Management: Using-Pantheon/Account-Management.md
         - Mining: Using-Pantheon/Mining.md
         - RPC Pub/Sub: Using-Pantheon/RPC-PubSub.md
         - Debugging Pantheon: Using-Pantheon/Debugging.md
+    - Monitoring Pantheon:
+        - EthStats:
+          - Overview: EthStats/Overview.md
+          - Lite Block Explorer: EthStats/Lite-Block-Explorer.md
+          - Lite Network Health Monitor: EthStats/Lite-Network-Health-Monitor.md
     - Reference:
         - Pantheon Command Line: Reference/Pantheon-CLI-Syntax.md
         - JSON-RPC API Methods: Reference/JSON-RPC-API-Methods.md
@@ -97,7 +120,7 @@ markdown_extensions:
     - toc:
         permalink: 
         toc_depth: 3
-    - pymdownx.highlight:
+    - codehilite
     - markdown_include.include:
         base_path: docs
     - admonition

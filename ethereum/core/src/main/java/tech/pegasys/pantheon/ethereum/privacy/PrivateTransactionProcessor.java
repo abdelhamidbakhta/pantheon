@@ -44,8 +44,10 @@ public class PrivateTransactionProcessor {
 
   private static final Logger LOG = LogManager.getLogger();
 
+  @SuppressWarnings("unused")
   private final GasCalculator gasCalculator;
 
+  @SuppressWarnings("unused")
   private final TransactionValidator transactionValidator;
 
   private final AbstractMessageProcessor contractCreationProcessor;
@@ -123,6 +125,7 @@ public class PrivateTransactionProcessor {
     }
   }
 
+  @SuppressWarnings("unused")
   private final boolean clearEmptyAccounts;
 
   public PrivateTransactionProcessor(
@@ -138,6 +141,7 @@ public class PrivateTransactionProcessor {
     this.clearEmptyAccounts = clearEmptyAccounts;
   }
 
+  @SuppressWarnings("unused")
   public Result processTransaction(
       final Blockchain blockchain,
       final WorldUpdater publicWorldState,
@@ -146,7 +150,8 @@ public class PrivateTransactionProcessor {
       final PrivateTransaction transaction,
       final Address miningBeneficiary,
       final OperationTracer operationTracer,
-      final BlockHashLookup blockHashLookup) {
+      final BlockHashLookup blockHashLookup,
+      final BytesValue privacyGroupId) {
     LOG.trace("Starting private execution of {}", transaction);
 
     final Address senderAddress = transaction.getSender();
@@ -167,7 +172,7 @@ public class PrivateTransactionProcessor {
     final Deque<MessageFrame> messageFrameStack = new ArrayDeque<>();
     if (transaction.isContractCreation()) {
       final Address privateContractAddress =
-          Address.privateContractAddress(senderAddress, sender.getNonce() - 1L, BytesValue.EMPTY);
+          Address.privateContractAddress(senderAddress, sender.getNonce() - 1L, privacyGroupId);
 
       initialFrame =
           MessageFrame.builder()
@@ -239,6 +244,7 @@ public class PrivateTransactionProcessor {
     }
   }
 
+  @SuppressWarnings("unused")
   private static void clearEmptyAccounts(final WorldUpdater worldState) {
     worldState.getTouchedAccounts().stream()
         .filter(Account::isEmpty)
@@ -262,6 +268,7 @@ public class PrivateTransactionProcessor {
     }
   }
 
+  @SuppressWarnings("unused")
   private static Gas refunded(
       final Transaction transaction, final Gas gasRemaining, final Gas gasRefund) {
     // Integer truncation takes care of the the floor calculation needed after the divide.

@@ -48,7 +48,7 @@ public class EthPeer {
   private static final Logger LOG = LogManager.getLogger();
   private final PeerConnection connection;
 
-  private final int maxTrackedSeenBlocks = 30_000;
+  private final int maxTrackedSeenBlocks = 300;
 
   private final Set<Hash> knownBlocks;
   private final String protocolName;
@@ -101,8 +101,8 @@ public class EthPeer {
     reputation.recordRequestTimeout(requestCode).ifPresent(this::disconnect);
   }
 
-  public void recordUselessResponse() {
-    LOG.debug("Received useless response from peer {}", this);
+  public void recordUselessResponse(final String requestType) {
+    LOG.debug("Received useless response for {} from peer {}", requestType, this);
     reputation.recordUselessResponse(System.currentTimeMillis()).ifPresent(this::disconnect);
   }
 
@@ -329,7 +329,7 @@ public class EthPeer {
   }
 
   public BytesValue nodeId() {
-    return connection.getPeer().getNodeId();
+    return connection.getPeerInfo().getNodeId();
   }
 
   @Override

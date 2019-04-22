@@ -38,14 +38,15 @@ import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.MiningParameters;
 import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
 import tech.pegasys.pantheon.ethereum.core.Synchronizer;
-import tech.pegasys.pantheon.ethereum.core.TransactionPool;
 import tech.pegasys.pantheon.ethereum.core.Util;
 import tech.pegasys.pantheon.ethereum.eth.EthProtocol;
+import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthProtocolManager;
 import tech.pegasys.pantheon.ethereum.eth.sync.DefaultSynchronizer;
 import tech.pegasys.pantheon.ethereum.eth.sync.SyncMode;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.sync.state.SyncState;
+import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPool;
 import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPoolFactory;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcApi;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.JsonRpcMethod;
@@ -79,6 +80,7 @@ public class CliquePantheonController implements PantheonController<CliqueContex
   private final Runnable closer;
 
   private final MiningCoordinator miningCoordinator;
+  private final PrivacyParameters privacyParameters;
 
   private CliquePantheonController(
       final ProtocolSchedule<CliqueContext> protocolSchedule,
@@ -89,6 +91,7 @@ public class CliquePantheonController implements PantheonController<CliqueContex
       final KeyPair keyPair,
       final TransactionPool transactionPool,
       final MiningCoordinator miningCoordinator,
+      final PrivacyParameters privacyParameters,
       final Runnable closer) {
 
     this.protocolSchedule = protocolSchedule;
@@ -100,17 +103,22 @@ public class CliquePantheonController implements PantheonController<CliqueContex
     this.transactionPool = transactionPool;
     this.closer = closer;
     this.miningCoordinator = miningCoordinator;
+    this.privacyParameters = privacyParameters;
   }
 
   static PantheonController<CliqueContext> init(
       final StorageProvider storageProvider,
       final GenesisConfigFile genesisConfig,
       final SynchronizerConfiguration syncConfig,
+      final EthereumWireProtocolConfiguration ethereumWireProtocolConfiguration,
       final MiningParameters miningParams,
       final int networkId,
       final KeyPair nodeKeys,
       final Path dataDirectory,
-      final MetricsSystem metricsSystem) {
+      final MetricsSystem metricsSystem,
+      final Clock clock,
+      final int maxPendingTransactions,
+      final PrivacyParameters privacyParameters) {
     final Address localAddress = Util.publicKeyToAddress(nodeKeys.getPublicKey());
     final CliqueConfigOptions cliqueConfig =
         genesisConfig.getConfigOptions().getCliqueConfigOptions();
@@ -119,7 +127,8 @@ public class CliquePantheonController implements PantheonController<CliqueContex
 
     final EpochManager epochManager = new EpochManager(blocksPerEpoch);
     final ProtocolSchedule<CliqueContext> protocolSchedule =
-        CliqueProtocolSchedule.create(genesisConfig.getConfigOptions(), nodeKeys);
+        CliqueProtocolSchedule.create(
+            genesisConfig.getConfigOptions(), nodeKeys, privacyParameters);
     final GenesisState genesisState = GenesisState.fromConfig(genesisConfig, protocolSchedule);
 
     final ProtocolContext<CliqueContext> protocolContext =
@@ -149,7 +158,8 @@ public class CliquePantheonController implements PantheonController<CliqueContex
             syncConfig.downloaderParallelism(),
             syncConfig.transactionsParallelism(),
             syncConfig.computationParallelism(),
-            metricsSystem);
+            metricsSystem,
+            ethereumWireProtocolConfiguration);
     final SyncState syncState =
         new SyncState(blockchain, ethProtocolManager.ethContext().getEthPeers());
     final Synchronizer synchronizer =
@@ -161,11 +171,18 @@ public class CliquePantheonController implements PantheonController<CliqueContex
             ethProtocolManager.ethContext(),
             syncState,
             dataDirectory,
+            clock,
             metricsSystem);
 
     final TransactionPool transactionPool =
         TransactionPoolFactory.createTransactionPool(
-            protocolSchedule, protocolContext, ethProtocolManager.ethContext());
+            protocolSchedule,
+            protocolContext,
+            ethProtocolManager.ethContext(),
+            clock,
+            maxPendingTransactions,
+            metricsSystem,
+            syncState);
 
     final ExecutorService minerThreadPool = Executors.newCachedThreadPool();
     final CliqueMinerExecutor miningExecutor =
@@ -177,7 +194,7 @@ public class CliquePantheonController implements PantheonController<CliqueContex
             nodeKeys,
             miningParams,
             new CliqueBlockScheduler(
-                Clock.systemUTC(),
+                clock,
                 protocolContext.getConsensusState().getVoteTallyCache(),
                 localAddress,
                 secondsBetweenBlocks),
@@ -202,6 +219,7 @@ public class CliquePantheonController implements PantheonController<CliqueContex
         nodeKeys,
         transactionPool,
         miningCoordinator,
+        privacyParameters,
         () -> {
           miningCoordinator.disable();
           minerThreadPool.shutdownNow();
@@ -212,6 +230,9 @@ public class CliquePantheonController implements PantheonController<CliqueContex
           }
           try {
             storageProvider.close();
+            if (privacyParameters.isEnabled()) {
+              privacyParameters.getPrivateStorageProvider().close();
+            }
           } catch (final IOException e) {
             LOG.error("Failed to close storage provider", e);
           }
@@ -260,7 +281,7 @@ public class CliquePantheonController implements PantheonController<CliqueContex
 
   @Override
   public PrivacyParameters getPrivacyParameters() {
-    return PrivacyParameters.noPrivacy();
+    return privacyParameters;
   }
 
   @Override

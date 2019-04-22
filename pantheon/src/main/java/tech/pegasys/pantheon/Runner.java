@@ -16,19 +16,21 @@ import tech.pegasys.pantheon.controller.PantheonController;
 import tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcHttpService;
 import tech.pegasys.pantheon.ethereum.jsonrpc.websocket.WebSocketService;
 import tech.pegasys.pantheon.ethereum.p2p.NetworkRunner;
-import tech.pegasys.pantheon.ethereum.p2p.peers.Endpoint;
-import tech.pegasys.pantheon.ethereum.p2p.peers.Peer;
+import tech.pegasys.pantheon.ethereum.p2p.api.P2PNetwork;
 import tech.pegasys.pantheon.metrics.prometheus.MetricsService;
+import tech.pegasys.pantheon.util.enode.EnodeURL;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.vertx.core.Vertx;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,8 +40,6 @@ public class Runner implements AutoCloseable {
   private static final Logger LOG = LogManager.getLogger();
 
   private final Vertx vertx;
-
-  private final ExecutorService exec = Executors.newCachedThreadPool();
 
   private final NetworkRunner networkRunner;
   private final Optional<JsonRpcHttpService> jsonRpc;
@@ -66,65 +66,101 @@ public class Runner implements AutoCloseable {
     this.dataDir = dataDir;
   }
 
-  public void execute() {
+  public void start() {
     try {
       LOG.info("Starting Ethereum main loop ... ");
       networkRunner.start();
       if (networkRunner.getNetwork().isP2pEnabled()) {
         pantheonController.getSynchronizer().start();
       }
-      jsonRpc.ifPresent(service -> service.start().join());
-      websocketRpc.ifPresent(service -> service.start().join());
-      metrics.ifPresent(service -> service.start().join());
+      jsonRpc.ifPresent(service -> waitForServiceToStart("jsonRpc", service.start()));
+      websocketRpc.ifPresent(service -> waitForServiceToStop("websocketRpc", service.start()));
+      metrics.ifPresent(service -> waitForServiceToStart("metrics", service.start()));
       LOG.info("Ethereum main loop is up.");
       writePantheonPortsToFile();
+    } catch (final Exception ex) {
+      LOG.error("Startup failed", ex);
+      throw new IllegalStateException(ex);
+    }
+  }
+
+  public void awaitStop() {
+    try {
       networkRunner.awaitStop();
     } catch (final InterruptedException e) {
       LOG.debug("Interrupted, exiting", e);
       Thread.currentThread().interrupt();
-    } catch (final Exception ex) {
-      LOG.error("Exception in main loop:", ex);
-      throw new IllegalStateException(ex);
     }
   }
 
   @Override
   public void close() throws Exception {
-    networkRunner.stop();
-    networkRunner.awaitStop();
-
-    exec.shutdown();
     try {
-      jsonRpc.ifPresent(service -> service.stop().join());
-      websocketRpc.ifPresent(service -> service.stop().join());
-      metrics.ifPresent(service -> service.stop().join());
+      if (networkRunner.getNetwork().isP2pEnabled()) {
+        pantheonController.getSynchronizer().stop();
+      }
+
+      networkRunner.stop();
+      networkRunner.awaitStop();
+
+      jsonRpc.ifPresent(service -> waitForServiceToStop("jsonRpc", service.stop()));
+      websocketRpc.ifPresent(service -> waitForServiceToStop("websocketRpc", service.stop()));
+      metrics.ifPresent(service -> waitForServiceToStop("metrics", service.stop()));
     } finally {
       try {
-        exec.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+        vertx.close();
       } finally {
-        try {
-          vertx.close();
-        } finally {
-          pantheonController.close();
-        }
+        pantheonController.close();
+      }
+    }
+  }
+
+  private void waitForServiceToStop(
+      final String serviceName, final CompletableFuture<?> stopFuture) {
+    try {
+      stopFuture.get(30, TimeUnit.SECONDS);
+    } catch (final InterruptedException e) {
+      LOG.debug("Interrupted while waiting for service to complete", e);
+      Thread.currentThread().interrupt();
+    } catch (final ExecutionException e) {
+      LOG.error("Service " + serviceName + " failed to shutdown", e);
+    } catch (final TimeoutException e) {
+      LOG.error("Service {} did not shut down cleanly", serviceName);
+    }
+  }
+
+  private void waitForServiceToStart(
+      final String serviceName, final CompletableFuture<?> startFuture) {
+    while (!startFuture.isDone()) {
+      try {
+        startFuture.get(60, TimeUnit.SECONDS);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("Interrupted while waiting for service to start", e);
+      } catch (final ExecutionException e) {
+        LOG.error("Service " + serviceName + " failed to start", e);
+        throw new IllegalStateException(e);
+      } catch (final TimeoutException e) {
+        LOG.warn("Service {} is taking an unusually long time to start", serviceName);
       }
     }
   }
 
   private void writePantheonPortsToFile() {
     final Properties properties = new Properties();
-
+    final P2PNetwork network = networkRunner.getNetwork();
     if (networkRunner.getNetwork().isP2pEnabled()) {
       networkRunner
           .getNetwork()
-          .getAdvertisedPeer()
+          .getLocalEnode()
           .ifPresent(
-              advertisedPeer -> {
-                final Endpoint endpoint = advertisedPeer.getEndpoint();
-                properties.setProperty("discovery", String.valueOf(endpoint.getUdpPort()));
+              enode -> {
+                if (network.isDiscoveryEnabled()) {
+                  properties.setProperty(
+                      "discovery", String.valueOf(enode.getEffectiveDiscoveryPort()));
+                }
+                properties.setProperty("p2p", String.valueOf(enode.getListeningPort()));
               });
-      final int tcpPort = networkRunner.getNetwork().getLocalPeerInfo().getPort();
-      properties.setProperty("p2p", String.valueOf(tcpPort));
     }
 
     if (getJsonRpcPort().isPresent()) {
@@ -165,7 +201,8 @@ public class Runner implements AutoCloseable {
     }
   }
 
-  public Optional<? extends Peer> getAdvertisedPeer() {
-    return networkRunner.getNetwork().getAdvertisedPeer();
+  @VisibleForTesting
+  Optional<EnodeURL> getLocalEnode() {
+    return networkRunner.getNetwork().getLocalEnode();
   }
 }

@@ -35,7 +35,9 @@ public class CliqueProtocolSchedule {
   private static final int DEFAULT_CHAIN_ID = 4;
 
   public static ProtocolSchedule<CliqueContext> create(
-      final GenesisConfigOptions config, final KeyPair nodeKeys) {
+      final GenesisConfigOptions config,
+      final KeyPair nodeKeys,
+      final PrivacyParameters privacyParameters) {
 
     final CliqueConfigOptions cliqueConfig = config.getCliqueConfigOptions();
 
@@ -48,8 +50,13 @@ public class CliqueProtocolSchedule {
             builder ->
                 applyCliqueSpecificModifications(
                     epochManager, cliqueConfig.getBlockPeriodSeconds(), localNodeAddress, builder),
-            PrivacyParameters.noPrivacy())
+            privacyParameters)
         .createProtocolSchedule();
+  }
+
+  public static ProtocolSchedule<CliqueContext> create(
+      final GenesisConfigOptions config, final KeyPair nodeKeys) {
+    return create(config, nodeKeys, PrivacyParameters.DEFAULT);
   }
 
   private static ProtocolSpecBuilder<CliqueContext> applyCliqueSpecificModifications(

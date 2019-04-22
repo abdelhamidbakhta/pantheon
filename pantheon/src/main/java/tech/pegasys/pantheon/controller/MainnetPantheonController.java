@@ -25,8 +25,8 @@ import tech.pegasys.pantheon.ethereum.chain.MutableBlockchain;
 import tech.pegasys.pantheon.ethereum.core.MiningParameters;
 import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
 import tech.pegasys.pantheon.ethereum.core.Synchronizer;
-import tech.pegasys.pantheon.ethereum.core.TransactionPool;
 import tech.pegasys.pantheon.ethereum.eth.EthProtocol;
+import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthContext;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthProtocolManager;
 import tech.pegasys.pantheon.ethereum.eth.peervalidation.DaoForkPeerValidator;
@@ -35,6 +35,7 @@ import tech.pegasys.pantheon.ethereum.eth.sync.DefaultSynchronizer;
 import tech.pegasys.pantheon.ethereum.eth.sync.SyncMode;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.sync.state.SyncState;
+import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPool;
 import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPoolFactory;
 import tech.pegasys.pantheon.ethereum.mainnet.MainnetBlockHeaderValidator;
 import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
@@ -98,12 +99,15 @@ public class MainnetPantheonController implements PantheonController<Void> {
       final GenesisConfigFile genesisConfig,
       final ProtocolSchedule<Void> protocolSchedule,
       final SynchronizerConfiguration syncConfig,
+      final EthereumWireProtocolConfiguration ethereumWireProtocolConfiguration,
       final MiningParameters miningParams,
       final int networkId,
       final KeyPair nodeKeys,
       final PrivacyParameters privacyParameters,
       final Path dataDirectory,
-      final MetricsSystem metricsSystem) {
+      final MetricsSystem metricsSystem,
+      final Clock clock,
+      final int maxPendingTransactions) {
 
     final GenesisState genesisState = GenesisState.fromConfig(genesisConfig, protocolSchedule);
     final ProtocolContext<Void> protocolContext =
@@ -121,7 +125,8 @@ public class MainnetPantheonController implements PantheonController<Void> {
             syncConfig.downloaderParallelism(),
             syncConfig.transactionsParallelism(),
             syncConfig.computationParallelism(),
-            metricsSystem);
+            metricsSystem,
+            ethereumWireProtocolConfiguration);
     final SyncState syncState =
         new SyncState(blockchain, ethProtocolManager.ethContext().getEthPeers());
     final Synchronizer synchronizer =
@@ -133,6 +138,7 @@ public class MainnetPantheonController implements PantheonController<Void> {
             ethProtocolManager.ethContext(),
             syncState,
             dataDirectory,
+            clock,
             metricsSystem);
 
     final OptionalLong daoBlock = genesisConfig.getConfigOptions().getDaoForkBlock();
@@ -147,7 +153,13 @@ public class MainnetPantheonController implements PantheonController<Void> {
 
     final TransactionPool transactionPool =
         TransactionPoolFactory.createTransactionPool(
-            protocolSchedule, protocolContext, ethProtocolManager.ethContext());
+            protocolSchedule,
+            protocolContext,
+            ethProtocolManager.ethContext(),
+            clock,
+            maxPendingTransactions,
+            metricsSystem,
+            syncState);
 
     final ExecutorService minerThreadPool = Executors.newCachedThreadPool();
     final EthHashMinerExecutor executor =
@@ -160,7 +172,7 @@ public class MainnetPantheonController implements PantheonController<Void> {
             new DefaultBlockScheduler(
                 MainnetBlockHeaderValidator.MINIMUM_SECONDS_SINCE_PARENT,
                 MainnetBlockHeaderValidator.TIMESTAMP_TOLERANCE_S,
-                Clock.systemUTC()));
+                clock));
 
     final EthHashMiningCoordinator miningCoordinator =
         new EthHashMiningCoordinator(blockchain, executor, syncState);
@@ -189,6 +201,9 @@ public class MainnetPantheonController implements PantheonController<Void> {
           }
           try {
             storageProvider.close();
+            if (privacyParameters.getPrivateStorageProvider() != null) {
+              privacyParameters.getPrivateStorageProvider().close();
+            }
           } catch (final IOException e) {
             LOG.error("Failed to close storage provider", e);
           }

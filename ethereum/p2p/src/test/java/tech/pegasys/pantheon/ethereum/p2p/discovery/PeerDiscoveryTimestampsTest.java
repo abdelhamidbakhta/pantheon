@@ -27,6 +27,7 @@ import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.PeerDiscoveryContro
 import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.PeerTable;
 import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.PingPacketData;
 import tech.pegasys.pantheon.ethereum.p2p.peers.PeerBlacklist;
+import tech.pegasys.pantheon.metrics.noop.NoOpMetricsSystem;
 import tech.pegasys.pantheon.util.Subscribers;
 
 import java.util.Collections;
@@ -64,8 +65,10 @@ public class PeerDiscoveryTimestampsTest {
             () -> true,
             new PeerBlacklist(),
             Optional.empty(),
+            Optional.empty(),
             new Subscribers<>(),
-            new Subscribers<>());
+            new Subscribers<>(),
+            new NoOpMetricsSystem());
     controller.start();
 
     final PingPacketData ping =

@@ -15,19 +15,8 @@ consensus protocol](../Consensus-Protocols/IBFT.md).
 
 ## Steps
 
-To create a private network using IBFT 2.0 with three nodes and one initial validator: 
-
-1. [Create Folders](#1-create-folders)
-1. [Get Public Key for Node-1](#2-get-public-key-for-node-1)
-1. [Get Node Addresses](#3-get-node-addresses)
-1. [Create JSON File to RLP Encode](#4-create-json-file-to-rlp-encode)
-1. [RLP Encode Extra Data](#5-rlp-encode-extra-data)
-1. [Create Genesis File](#6-create-genesis-file)
-1. [Delete Database Directory](#7-delete-database-directory)
-1. [Start First Node as Bootnode](#8-start-first-node-as-bootnode)
-1. [Start Node-2](#9-start-node-2)
-1. [Start Node-3](#10-start-node-3)
-1. [Confirm Private Network is Working](#11-confirm-private-network-is-working)
+The steps to create a private network using IBFT 2.0 with three nodes and one initial validator are displayed 
+on the right. 
 
 ### 1. Create Folders 
 
@@ -45,34 +34,7 @@ IBFT-Network/
     ├── data
 ```
 
-### 2. Get Public Key for Node-1
-
-The public key of Node-1 is needed for the [enode URL](../Configuring-Pantheon/Node-Keys.md#enode-url). The enode URL
- is used when starting Node-2 and Node-3 to specify Node-1 is the bootnode. 
-
-In the `Node-1` directory, use the [`public-key export`](../Reference/Pantheon-CLI-Syntax.md#public-key) subcommand to write 
-the [node public key](../Configuring-Pantheon/Node-Keys.md) to the specified file (`publicKey`):
-
-```bash tab="MacOS"
-pantheon --data-path=data public-key export --to=data/publicKey
-```
-
-```bash tab="Windows"
-pantheon --data-path=path public-key export --to=data\publicKey
-```
-
-Your node 1 directory now contains: 
-```bash
-├── Node-1
-    ├── data
-        ├── database
-        ├── key
-        ├── publicKey
-```
-      
-The `database` directory contains the blockchain data. 
-
-### 3. Get Node Addresses 
+### 2. Get Node Addresses 
 
 In IBFT 2.0 networks, the address of at least one initial validator must be included in the genesis file in the
 RLP encoded `extraData` string. For this network, we will use Node-1 as the initial validator. This requires obtaining the address for Node-1. 
@@ -92,7 +54,7 @@ To vote in validators once the network is running, the node address for the prop
 and `Node-3` directories, write the node address for each node to the specified file using the `public-key export-address`
 command as for `Node-1`. 
 
-### 4. Create JSON File to RLP Encode
+### 3. Create JSON File to RLP Encode
 
 Create a file called `toEncode.json` in the `IBFT-Network` directory that contains the [Node 1 address excluding the 0x prefix](#3-get-node-addresses)
 from the `nodeAddress` file in the `Node-1/data` directory: 
@@ -110,7 +72,7 @@ from the `nodeAddress` file in the `Node-1/data` directory:
 ```
 
 
-### 5. RLP Encode Extra Data 
+### 4. RLP Encode Extra Data 
 
 The `extraData` property in IBFT 2.0 genesis files is an RLP encoding of `[32 Bytes Vanity, List<Validators>, No Vote, Round=Int(0), 0 Seals]`. 
 
@@ -126,7 +88,7 @@ pantheon rlp encode --from=toEncode.json --to=rlpEncodedExtraData
 ```
 
 
-### 6. Create Genesis File 
+### 5. Create Genesis File 
 
 The genesis file defines the genesis block of the blockchain (that is, the start of the blockchain).
 The [IBFT 2.0 genesis file](../Consensus-Protocols/IBFT.md#genesis-file) includes the address of Node-1 as the initial validator in the
@@ -181,7 +143,7 @@ In `extraData`, copy the [RLP encoded data](#5-rlp-encode-extra-data) from the `
     ```json
     {
       ...
-    "extraData":0xf83ea00000000000000000000000000000000000000000000000000000000000000000d5949b9f91039843450927b0043ae71cd803e0db0c30808400000000c0",
+    "extraData":"0xf83ea00000000000000000000000000000000000000000000000000000000000000000d5949b9f91039843450927b0043ae71cd803e0db0c30808400000000c0",
       ...
     }
     ```
@@ -191,12 +153,7 @@ In `extraData`, copy the [RLP encoded data](#5-rlp-encode-extra-data) from the `
         
     The private keys are displayed which means the accounts are not secure.  
 
-### 7. Delete Database Directories
-
-Delete the `database` directories created when [getting the public key for Node-1](#2-get-public-key-for-node-1) and [addresses for Node-2 and Node-3](#3-get-node-addresses).
-The nodes cannot be started with the IBFT 2.0 genesis file while the previously generated data is in the `database` directories. 
-
-### 8. Start First Node as Bootnode
+### 6. Start First Node as Bootnode
 
 In the `Node-1` directory, start Node-1:
 
@@ -208,6 +165,11 @@ pantheon --data-path=data --genesis-file=../ibftGenesis.json --rpc-http-enabled 
 pantheon --data-path=data --genesis-file=..\ibftGenesis.json --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all"    
 ```
 
+!!!note
+    The [`--genesis-file`](../Reference/Pantheon-CLI-Syntax.md#genesis-file) option is not used when running 
+    Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md). Use a bind mount to 
+    [specify a configuration file with Docker](../Getting-Started/Run-Docker-Image.md#custom-genesis-file).
+
 The command line specifies: 
 
 * Data directory for Node-1 using the [`--data-path`](../Reference/Pantheon-CLI-Syntax.md#data-path) option.
@@ -216,18 +178,21 @@ The command line specifies:
 * All hosts can access the HTTP JSON-RPC API using the [`--host-whitelist`](../Reference/Pantheon-CLI-Syntax.md#host-whitelist) option
 * All domains can access the node using the HTTP JSON-RPC API using the [`--rpc-http-cors-origins`](../Reference/Pantheon-CLI-Syntax.md#rpc-http-cors-origins) option 
 
-### 9. Start Node-2 
+When the node starts, the [enode URL](../Configuring-Pantheon/Node-Keys.md#enode-url) is displayed.
+Copy the enode URL to specify Node-1 as the bootnode in the following steps. 
 
-You need the [enode URL](../Configuring-Pantheon/Node-Keys.md#enode-url) for Node-1 to specify Node-1 as a bootnode. 
+![Node 1 Enode URL](../images/EnodeStartup.png)
 
-Start another terminal, change to the `Node-2` directory and start Node-2 replacing the enode URL with your bootonde:
+### 7. Start Node-2 
+
+Start another terminal, change to the `Node-2` directory and start Node-2 specifying the Node-1 enode URL copied when starting Node-1 as the bootnode:
  
 ```bash tab="MacOS"
-pantheon --data-path=data --genesis-file=../ibftGenesis.json --bootnodes="enode://<node public key ex 0x>@127.0.0.1:30303" --p2p-port=30304 --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all" --rpc-http-port=8546     
+pantheon --data-path=data --genesis-file=../ibftGenesis.json --bootnodes=<Node-1 Enode URL> --p2p-port=30304 --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all" --rpc-http-port=8546     
 ```
 
 ```bash tab="Windows"
-pantheon --data-path=data --genesis-file=..\ibftGenesis.json --bootnodes="enode://<node public key ex 0x>@127.0.0.1:30303" --p2p-port=30304 --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all" --rpc-http-port=8546     
+pantheon --data-path=data --genesis-file=..\ibftGenesis.json --bootnodes=<Node-1 Enode URL> --p2p-port=30304 --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all" --rpc-http-port=8546     
 ```
 
 The command line specifies: 
@@ -239,16 +204,16 @@ The command line specifies:
 * Other options as for [Node-1](#5-start-first-node-as-bootnode).
 
 
-### 10. Start Node-3
+### 8. Start Node-3
 
-Start another terminal, change to the `Node-3` directory and start Node-3 replacing the enode URL with your bootnode: 
+Start another terminal, change to the `Node-3` directory and start Node-3 specifying the Node-1 enode URL copied when starting Node-1 as the bootnode: 
 
 ```bash tab="MacOS"
-pantheon --data-path=data --genesis-file=../ibftGenesis.json --bootnodes="enode://<node public key ex 0x>@127.0.0.1:30303" --p2p-port=30305 --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all" --rpc-http-port=8547    
+pantheon --data-path=data --genesis-file=../ibftGenesis.json --bootnodes=<Node-1 Enode URL> --p2p-port=30305 --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all" --rpc-http-port=8547    
 ```
 
 ```bash tab="Windows"
-pantheon --data-path=data --genesis-file=..\ibftGenesis.json --bootnodes="enode://<node public key ex 0x>@127.0.0.1:30303" --p2p-port=30305 --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all" --rpc-http-port=8547    
+pantheon --data-path=data --genesis-file=..\ibftGenesis.json --bootnodes=<Node-1 Enode URL> --p2p-port=30305 --rpc-http-enabled --rpc-http-api=ETH,NET,IBFT --host-whitelist=* --rpc-http-cors-origins="all" --rpc-http-port=8547    
 ```
 
 The command line specifies: 
@@ -259,7 +224,7 @@ The command line specifies:
  * Bootnode as for [Node-2](#6-start-node-2).
  * Other options as for [Node-1](#5-start-first-node-as-bootnode). 
 
-### 11. Confirm Private Network is Working 
+### 9. Confirm Private Network is Working 
 
 Start another terminal, use curl to call the JSON-RPC API [`net_peerCount`](../Reference/JSON-RPC-API-Methods.md#net_peercount) method and confirm the nodes are functioning as peers: 
 
@@ -295,4 +260,4 @@ Import accounts to MetaMask and send transactions as described in the [Private N
 When finished using the private network, stop all nodes using ++ctrl+c++ in each terminal window. 
 
 !!!tip
-    To restart the IBFT 2.0 network in the future, start from [8. Start First Node as Bootnode](#8-start-first-node-as-bootnode). 
+    To restart the IBFT 2.0 network in the future, start from [6. Start First Node as Bootnode](#6-start-first-node-as-bootnode). 

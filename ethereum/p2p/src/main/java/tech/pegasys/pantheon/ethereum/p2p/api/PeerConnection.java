@@ -15,9 +15,10 @@ package tech.pegasys.pantheon.ethereum.p2p.api;
 import tech.pegasys.pantheon.ethereum.p2p.wire.Capability;
 import tech.pegasys.pantheon.ethereum.p2p.wire.PeerInfo;
 import tech.pegasys.pantheon.ethereum.p2p.wire.messages.DisconnectMessage.DisconnectReason;
+import tech.pegasys.pantheon.util.enode.EnodeURL;
 
 import java.io.IOException;
-import java.net.SocketAddress;
+import java.net.InetSocketAddress;
 import java.util.Set;
 
 /** A P2P connection to another node. */
@@ -68,7 +69,7 @@ public interface PeerConnection {
    *
    * @return Peer Description
    */
-  PeerInfo getPeer();
+  PeerInfo getPeerInfo();
 
   /**
    * Immediately terminate the connection without sending a disconnect message.
@@ -88,14 +89,22 @@ public interface PeerConnection {
   /** @return True if the peer is disconnected */
   boolean isDisconnected();
 
-  SocketAddress getLocalAddress();
+  InetSocketAddress getLocalAddress();
 
-  SocketAddress getRemoteAddress();
+  InetSocketAddress getRemoteAddress();
 
   class PeerNotConnected extends IOException {
 
     public PeerNotConnected(final String message) {
       super(message);
     }
+  }
+
+  default EnodeURL getRemoteEnode() {
+    return EnodeURL.builder()
+        .nodeId(getPeerInfo().getNodeId())
+        .listeningPort(getPeerInfo().getPort())
+        .ipAddress(getRemoteAddress().getAddress())
+        .build();
   }
 }

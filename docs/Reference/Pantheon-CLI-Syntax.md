@@ -1,13 +1,7 @@
-description: Pantheon commande line interface reference
+description: Pantheon command line interface reference
 <!--- END of page meta data -->
 
 # Pantheon Command Line
-
-!!! important "Breaking Changes in v0.9"
-    In v0.9, the command line changed to improve usability. These are breaking changes; that is, 
-    in many cases the v0.8 command line options no longer work. 
-    This reference and the rest of the documentation has been updated to reflect these changes. The [release notes](https://github.com/PegaSysEng/pantheon/blob/master/CHANGELOG.md) 
-    include a mapping of the previous command line options to the new options. 
 
 This reference describes the syntax of the Pantheon Command Line Interface (CLI) options and subcommands.
 
@@ -39,7 +33,7 @@ banned-nodeids=["0xc35c3...d615f","0xf42c13...fc456"]
 List of node IDs with which this node will not peer. The node ID is the public key of the node. You can specify the banned node IDs with or without the `0x` prefix.
 
 !!!tip
-    The singular `--banned-node-id` and plural `--banned-node-ids` are available and are just two
+    The singular `--banned-node-id` and plural `--banned-node-ids` are available and are two
     names for the same option.
  
 ### bootnodes
@@ -66,10 +60,10 @@ When connecting to MainNet or public testnets, the default is a predefined list 
 
 On custom networks defined by [`--genesis-file`](#genesis-file) option,
 an empty list of bootnodes is defined by default unless you define custom bootnodes as described in 
-[private network documentation](../Configuring-Pantheon/Bootnodes.md#bootnodes).
+[private network documentation](../Configuring-Pantheon/Networking/Bootnodes.md#bootnodes).
 
 !!! note
-    Specifying that a node is a [bootnode](../Configuring-Pantheon/Bootnodes.md#bootnodes) 
+    Specifying that a node is a [bootnode](../Configuring-Pantheon/Networking/Bootnodes.md#bootnodes) 
     must be done on the command line using [`--bootnodes`](#bootnodes) option without value,
     not in a [configuration file](../Configuring-Pantheon/Using-Configuration-File.md).  
 
@@ -103,7 +97,7 @@ The default is `none`.
 data-path="/home/me/me_node"
 ```
 
-The path to the Pantheon data directory. The default is the `/build/distributions/pantheon-<version>` directory in the Pantheon installation directory.
+The path to the Pantheon data directory. The default is the directory in which Pantheon is installed.
 
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#data-directory). 
@@ -253,7 +247,7 @@ metrics-port="6174"
 ```
 
 Specifies the port (TCP) on which [Prometheus](https://prometheus.io/) accesses [Pantheon metrics](../Using-Pantheon/Debugging.md#monitor-node-performance-using-prometheus).
-The default is `9545`. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking.md#port-configuration).
+The default is `9545`. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking/Configuring-Ports.md).
 
 ### metrics-push-enabled 
 
@@ -327,7 +321,7 @@ metrics-push-port="6174"
 ```
 
 Port (TCP) of the [Prometheus Push Gateway](https://github.com/prometheus/pushgateway).
-The default is `9001`. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking.md#port-configuration).
+The default is `9001`. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking/Configuring-Ports.md).
 
 ### metrics-push-prometheus-job
 
@@ -551,65 +545,128 @@ p2p-port="1789"
 ```
 
 Specifies the P2P listening ports (UDP and TCP).
-The default is 30303. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking.md#port-configuration).
+The default is 30303. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking/Configuring-Ports.md).
 
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#exposing-ports). 
 
-### permissions-accounts-enabled
+### permissions-accounts-config-file-enabled
 
 ```bash tab="Syntax"
---permissions-accounts-enabled[=<true|false>]
+--permissions-accounts-config-file-enabled[=<true|false>]
 ```
 
 ```bash tab="Example Command Line"
---permissions-accounts-enabled
+--permissions-accounts-config-file-enabled
 ```
 
 ```bash tab="Example Configuration File"
-permissions-accounts-enabled=true
+permissions-accounts-config-file-enabled=true
 ```
 
-Set to enable account level permissions.
+Set to enable file-based account level permissions. Default is `false`. 
 
-The default is `false`. 
-    
-### permissions-config-file    
+### permissions-accounts-config-file    
 
 ```bash tab="Syntax"
---permissions-config-file=<FILE>
+--permissions-accounts-config-file=<FILE>
 ```
 
 ```bash tab="Example Command Line"
---permissions-config-file=/home/me/me_configFiles/myPermissionsFile
+--permissions-accounts-config-file=/home/me/me_configFiles/myPermissionsFile
 ```
 
 ```bash tab="Example Configuration File"
-permissions-config-file="/home/me/me_configFiles/myPermissionsFile"
+permissions-accounts-config-file="/home/me/me_configFiles/myPermissionsFile"
 ```
 
-Path to the [permissions configuration file](../Permissions/Permissioning.md#permissions-configuration-file).
-The default is the `permissions_config.toml` file in the [data directory](#data-path).
+Path to the [accounts permissions configuration file](../Permissions/Local-Permissioning.md#permissions-configuration-file).
+Default is the `permissions_config.toml` file in the [data directory](#data-path).
+
+!!! tip
+    `--permissions-accounts-config-file` and [`--permissions-nodes-config-file`](#permissions-nodes-config-file)
+    can use the same file. 
 
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#permissions-configuration-file).
 
-### permissions-nodes-enabled
+### permissions-nodes-config-file-enabled
 
 ```bash tab="Syntax"
---permissions-nodes-enabled[=<true|false>]
+--permissions-nodes-config-file-enabled[=<true|false>]
 ```
 
 ```bash tab="Example Command Line"
---permissions-nodes-enabled
+--permissions-nodes-config-file-enabled
 ```
 
 ```bash tab="Example Configuration File"
-permissions-nodes-enabled=true
+permissions-nodes-config-file-enabled=true
 ```
 
-Set to enable node level permissions.
-The default is `false`.
+Set to enable file-based node level permissions. Default is `false`.
+
+### permissions-nodes-config-file    
+
+```bash tab="Syntax"
+--permissions-nodes-config-file=<FILE>
+```
+
+```bash tab="Example Command Line"
+--permissions-nodes-config-file=/home/me/me_configFiles/myPermissionsFile
+```
+
+```bash tab="Example Configuration File"
+permissions-nodes-config-file="/home/me/me_configFiles/myPermissionsFile"
+```
+
+Path to the [nodes permissions configuration file](../Permissions/Local-Permissioning.md#permissions-configuration-file).
+Default is the `permissions_config.toml` file in the [data directory](#data-path).
+
+!!! tip
+    `--permissions-nodes-config-file` and [`--permissions-accounts-config-file`](#permissions-accounts-config-file)
+    can use the same file. 
+
+!!!note
+    This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#permissions-configuration-file).
+
+### permissions-nodes-contract-address
+
+```bash tab="Syntax"
+--permissions-nodes-contract-address=<ContractAddress>
+```
+
+```bash tab="Example Command Line"
+--permissions-nodes-contract-address=xyz
+```
+
+```bash tab="Example Configuration File"
+permissions-nodes-contract-address=xyz
+```
+
+Specifies the contract address for contract-based nodes permissions.
+
+!!!note
+    Contract-based nodes permissions are under development and will be available in v1.1.  
+
+### permissions-nodes-contract-enabled
+
+```bash tab="Syntax"
+--permissions-nodes-contract-enabled[=<true|false>]
+```
+
+```bash tab="Example Command Line"
+--permissions-nodes-contract-enabled
+```
+
+```bash tab="Example Configuration File"
+permissions-nodes-contract-enabled=true
+```
+
+Set to enable contract-based node level permissions. Default is `false`.
+
+!!!note
+    Contract-based nodes permissions are under development and will be available in v1.1.  
 
 ### privacy-enabled
 
@@ -625,11 +682,8 @@ The default is `false`.
 privacy-enabled=false
 ```
 
-Set to enable private transactions. 
-The default is false.
-
-!!!note
-    Privacy is under development and will be available in v1.1.  
+Set to enable [private transactions](../Privacy/Privacy-Overview.md). 
+The default is false.  
 
 ### privacy-precompiled-address
 
@@ -637,11 +691,8 @@ The default is false.
 --privacy-precompiled-address=<privacyPrecompiledAddress>
 ```
 
-Address to which the privacy pre-compiled contract is mapped.
-The default is 126. 
-
-!!!note
-    Privacy is under development and will be available in v1.1.    
+Address to which the [privacy pre-compiled contract](../Privacy/Private-Transaction-Processing.md) is mapped.
+The default is 126.     
     
 ### privacy-public-key-file
 
@@ -649,10 +700,15 @@ The default is 126.
 --privacy-public-key-file=<privacyPublicKeyFile>
 ```
 
-Path to the public key for the enclave.     
+```bash tab="Example Command Line"
+--privacy-public-key-file=Orion/nodeKey.pub
+```
 
-!!!note
-    Privacy is under development and will be available in v1.1.
+```bash tab="Example Configuration File"
+privacy-public-key-file="Orion/nodeKey.pub"
+```
+
+Path to the [public key of the Orion node](../Privacy/Privacy-Overview.md#pantheon-and-orion-keys).     
 
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#privacy-public-key-file).
@@ -663,10 +719,15 @@ Path to the public key for the enclave.
 --privacy-url=<privacyUrl>
 ```
 
-URL on which enclave is running.    
+```bash tab="Example Command Line"
+--privacy-url=http://127.0.0.1:8888
+```
 
-!!!note
-    Privacy is under development and will be available in v1.1.
+```bash tab="Example Configuration File"
+privacy-url="http://127.0.0.1:8888"
+```
+
+URL on which the [Orion node](../Privacy/Configuring-Privacy.md#4-create-orion-configuration-files) is running.    
 
 ### rpc-http-api
 
@@ -684,14 +745,11 @@ rpc-http-api=["ETH","NET","WEB3"]
 
 Comma-separated APIs to enable on the HTTP JSON-RPC channel.
 When you use this option, the `--rpc-http-enabled` option must also be specified.
-The available API options are: `ADMIN`, `ETH`, `NET`, `WEB3`, `CLIQUE`, `IBFT`, `PERM`, `DEBUG`, `MINER`, and `EEA`.
+The available API options are: `ADMIN`, `ETH`, `NET`, `WEB3`, `CLIQUE`, `IBFT`, `PERM`, `DEBUG`, `MINER`, `EEA`, and `TXPOOL`.
 The default is: `ETH`, `NET`, `WEB3`.
 
-!!!note
-    EEA methods are for privacy features. Privacy features are under development and will be available in v1.1.  
-
 !!!tip
-    The singular `--rpc-http-api` and plural `--rpc-http-apis` are available and are just two
+    The singular `--rpc-http-api` and plural `--rpc-http-apis` are available and are two
     names for the same option.
     
 ### rpc-http-authentication-credentials-file
@@ -825,7 +883,7 @@ rpc-http-port="3435"
 ```
 
 Specifies HTTP JSON-RPC listening port (TCP).
-The default is 8545. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking.md#port-configuration). 
+The default is 8545. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking/Configuring-Ports.md). 
 
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#exposing-ports). 
@@ -846,11 +904,8 @@ rpc-ws-api=["ETH","NET","WEB3"]
 
 Comma-separated APIs to enable on WebSockets channel.
 When you use this option, the `--rpc-ws-enabled` option must also be specified.
-The available API options are: `ETH`, `NET`, `WEB3`, `CLIQUE`, `IBFT`, `PERM', DEBUG`, `MINER` and `EEA`.
+The available API options are: `ADMIN`,`ETH`, `NET`, `WEB3`, `CLIQUE`, `IBFT`, `PERM', DEBUG`, `MINER`, `EEA`, and `TXPOOL`.
 The default is: `ETH`, `NET`, `WEB3`.
-
-!!!note
-    EEA methods are for privacy features. Privacy features are under development and will be available in v1.1.  
 
 !!!tip
     The singular `--rpc-ws-api` and plural `--rpc-ws-apis` are available and are just two
@@ -947,10 +1002,26 @@ rpc-ws-port="6174"
 ```
 
 Specifies Websockets JSON-RPC listening port (TCP).
-The default is 8546. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking.md#port-configuration).
+The default is 8546. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking/Configuring-Ports.md).
 
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#exposing-ports). 
+
+### tx-pool-max-size
+
+```bash tab="Syntax"
+--tx-pool-max-size=<INTEGER>
+```
+
+```bash tab="Example Command Line"
+--tx-pool-max-size=2000
+```
+
+```bash tab="Example Configuration File"
+tx-pool-max-size="2000"
+```
+
+Maximum number of transactions kept in the transaction pool. Default is 4096. 
 
 ### help
 
@@ -986,6 +1057,44 @@ Default is `INFO`.
 
 Print version information and exit.
 
+## Fast Sync Options 
+
+!!! important 
+    Support for fast sync is currently experimental. Fast sync is in active development. The fast sync options are available
+    but hidden on the command line. 
+
+### sync-mode
+
+```bash tab="Syntax"
+--sync-mode=FAST
+```
+
+```bash tab="Example Command Line"
+--sync-mode=FAST
+```
+
+```bash tab="Example Configuration File"
+sync-mode="FAST"
+```
+
+Specifies the synchronization mode. Default is `FULL`.
+
+### fast-sync-min-peers
+
+```bash tab="Syntax"
+--fast-sync-min-peers=<INTEGER>
+```
+
+```bash tab="Example Command Line"
+--fast-sync-min-peers=2
+```
+
+```bash tab="Example Configuration File"
+fast-sync-min-peers=2
+```
+
+Minimum number of peers required before starting fast sync. Default is 5. 
+
 ## Commands
 
 Pantheon subcommands are: 
@@ -994,7 +1103,7 @@ Pantheon subcommands are:
 
 This command provides blocks related actions.
 
-#### import
+### import
 
 ```bash tab="Syntax"
 $ pantheon blocks import --from=<block-file>
@@ -1010,7 +1119,7 @@ Imports blocks from the specified file into the blockchain database
 
 This command provides node public key related actions.
 
-#### export
+### export
 
 ```bash tab="Syntax"
 $ pantheon public-key export [--to=<key-file>]
@@ -1027,7 +1136,7 @@ $ pantheon --data-path=<node data path> public-key export --to=/home/me/me_proje
 Outputs the node public key to standard output or writes it to the specified file if 
 `--to=<key-file>` is specified. 
 
-#### export-address
+### export-address
 
 ```bash tab="Syntax"
 $ pantheon public-key export-address [--to=<address-file>]
@@ -1048,7 +1157,7 @@ Outputs the node public key address to standard output or writes it to the speci
 
 This command provides password related actions.
 
-#### hash
+### hash
 
 This command generates the hash of a given password. Include the hash in the [credentials file](../JSON-RPC-API/Authentication.md#credentials-file)
  for JSON-RPC API [authentication](../JSON-RPC-API/Authentication.md). 
@@ -1065,7 +1174,7 @@ $ pantheon password hash --password=myPassword123
 
 This command provides RLP related actions.
 
-#### encode
+### encode
 
 This command encodes a typed JSON value from a file or from the standard input into an RLP hexadecimal string.
 

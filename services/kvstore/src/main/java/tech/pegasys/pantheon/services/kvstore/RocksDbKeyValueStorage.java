@@ -16,25 +16,20 @@ import tech.pegasys.pantheon.metrics.Counter;
 import tech.pegasys.pantheon.metrics.MetricCategory;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
 import tech.pegasys.pantheon.metrics.OperationTimer;
+import tech.pegasys.pantheon.metrics.prometheus.PrometheusMetricsSystem;
+import tech.pegasys.pantheon.metrics.rocksdb.RocksDBStats;
 import tech.pegasys.pantheon.services.util.RocksDbUtil;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 
 import java.io.Closeable;
-import java.nio.file.Path;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.Spliterator;
-import java.util.Spliterators;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
+import org.rocksdb.Statistics;
 import org.rocksdb.TransactionDB;
 import org.rocksdb.TransactionDBOptions;
 import org.rocksdb.WriteOptions;
@@ -53,39 +48,87 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
   private final OperationTimer writeLatency;
   private final OperationTimer commitLatency;
   private final Counter rollbackCount;
+  private final Statistics stats;
 
   public static KeyValueStorage create(
-      final Path storageDirectory, final MetricsSystem metricsSystem) throws StorageException {
-    return new RocksDbKeyValueStorage(storageDirectory, metricsSystem);
+      final RocksDbConfiguration rocksDbConfiguration, final MetricsSystem metricsSystem)
+      throws StorageException {
+    return new RocksDbKeyValueStorage(rocksDbConfiguration, metricsSystem);
   }
 
-  private RocksDbKeyValueStorage(final Path storageDirectory, final MetricsSystem metricsSystem) {
+  private RocksDbKeyValueStorage(
+      final RocksDbConfiguration rocksDbConfiguration, final MetricsSystem metricsSystem) {
     RocksDbUtil.loadNativeLibrary();
     try {
-      options = new Options().setCreateIfMissing(true);
+      stats = new Statistics();
+      options =
+          new Options()
+              .setCreateIfMissing(true)
+              .setMaxOpenFiles(rocksDbConfiguration.getMaxOpenFiles())
+              .setTableFormatConfig(rocksDbConfiguration.getBlockBasedTableConfig())
+              .setStatistics(stats);
+
       txOptions = new TransactionDBOptions();
-      db = TransactionDB.open(options, txOptions, storageDirectory.toString());
+      db = TransactionDB.open(options, txOptions, rocksDbConfiguration.getDatabaseDir().toString());
 
       readLatency =
-          metricsSystem.createTimer(
-              MetricCategory.ROCKSDB, "read_latency_seconds", "Latency for read from RocksDB.");
+          metricsSystem
+              .createLabelledTimer(
+                  MetricCategory.KVSTORE_ROCKSDB,
+                  "read_latency_seconds",
+                  "Latency for read from RocksDB.",
+                  "database")
+              .labels(rocksDbConfiguration.getLabel());
       removeLatency =
-          metricsSystem.createTimer(
-              MetricCategory.ROCKSDB,
-              "remove_latency_seconds",
-              "Latency of remove requests from RocksDB.");
+          metricsSystem
+              .createLabelledTimer(
+                  MetricCategory.KVSTORE_ROCKSDB,
+                  "remove_latency_seconds",
+                  "Latency of remove requests from RocksDB.",
+                  "database")
+              .labels(rocksDbConfiguration.getLabel());
       writeLatency =
-          metricsSystem.createTimer(
-              MetricCategory.ROCKSDB, "write_latency_seconds", "Latency for write to RocksDB.");
+          metricsSystem
+              .createLabelledTimer(
+                  MetricCategory.KVSTORE_ROCKSDB,
+                  "write_latency_seconds",
+                  "Latency for write to RocksDB.",
+                  "database")
+              .labels(rocksDbConfiguration.getLabel());
       commitLatency =
-          metricsSystem.createTimer(
-              MetricCategory.ROCKSDB, "commit_latency_seconds", "Latency for commits to RocksDB.");
+          metricsSystem
+              .createLabelledTimer(
+                  MetricCategory.KVSTORE_ROCKSDB,
+                  "commit_latency_seconds",
+                  "Latency for commits to RocksDB.",
+                  "database")
+              .labels(rocksDbConfiguration.getLabel());
+
+      if (metricsSystem instanceof PrometheusMetricsSystem) {
+        RocksDBStats.registerRocksDBMetrics(stats, (PrometheusMetricsSystem) metricsSystem);
+      }
+
+      metricsSystem.createLongGauge(
+          MetricCategory.KVSTORE_ROCKSDB,
+          "rocks_db_table_readers_memory_bytes",
+          "Estimated memory used for RocksDB index and filter blocks in bytes",
+          () -> {
+            try {
+              return db.getLongProperty("rocksdb.estimate-table-readers-mem");
+            } catch (final RocksDBException e) {
+              LOG.debug("Failed to get RocksDB metric", e);
+              return 0L;
+            }
+          });
 
       rollbackCount =
-          metricsSystem.createCounter(
-              MetricCategory.ROCKSDB,
-              "rollback_count",
-              "Number of RocksDB transactions rolled back.");
+          metricsSystem
+              .createLabelledCounter(
+                  MetricCategory.KVSTORE_ROCKSDB,
+                  "rollback_count",
+                  "Number of RocksDB transactions rolled back.",
+                  "database")
+              .labels(rocksDbConfiguration.getLabel());
     } catch (final RocksDBException e) {
       throw new StorageException(e);
     }
@@ -122,61 +165,6 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
     if (closed.get()) {
       LOG.error("Attempting to use a closed RocksDbKeyValueStorage");
       throw new IllegalStateException("Storage has been closed");
-    }
-  }
-
-  /**
-   * Iterates over rocksDB key-value entries. Reads from a db snapshot implicitly taken when the
-   * RocksIterator passed to the constructor was created.
-   *
-   * <p>Implements {@link AutoCloseable} and can be used with try-with-resources construct. When
-   * transformed to a stream (see {@link #toStream}), iterator is automatically closed when the
-   * stream is closed.
-   */
-  private static class RocksDbEntryIterator implements Iterator<Entry>, AutoCloseable {
-    private final RocksIterator rocksIt;
-    private volatile boolean closed = false;
-
-    RocksDbEntryIterator(final RocksIterator rocksIt) {
-      this.rocksIt = rocksIt;
-    }
-
-    @Override
-    public boolean hasNext() {
-      return rocksIt.isValid();
-    }
-
-    @Override
-    public Entry next() {
-      if (closed) {
-        throw new IllegalStateException("Attempt to read from a closed RocksDbEntryIterator.");
-      }
-      try {
-        rocksIt.status();
-      } catch (final RocksDBException e) {
-        LOG.error("RocksDbEntryIterator encountered a problem while iterating.", e);
-      }
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
-      final Entry entry =
-          Entry.create(BytesValue.wrap(rocksIt.key()), BytesValue.wrap(rocksIt.value()));
-      rocksIt.next();
-      return entry;
-    }
-
-    Stream<Entry> toStream() {
-      final Spliterator<Entry> split =
-          Spliterators.spliteratorUnknownSize(
-              this, Spliterator.IMMUTABLE | Spliterator.DISTINCT | Spliterator.NONNULL);
-
-      return StreamSupport.stream(split, false).onClose(this::close);
-    }
-
-    @Override
-    public void close() {
-      rocksIt.close();
-      closed = true;
     }
   }
 

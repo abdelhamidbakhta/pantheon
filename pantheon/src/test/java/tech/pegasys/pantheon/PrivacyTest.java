@@ -22,9 +22,12 @@ import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.InMemoryStorageProvider;
 import tech.pegasys.pantheon.ethereum.core.MiningParametersTestBuilder;
 import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
+import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
+import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions;
 import tech.pegasys.pantheon.ethereum.mainnet.PrecompiledContract;
 import tech.pegasys.pantheon.metrics.noop.NoOpMetricsSystem;
+import tech.pegasys.pantheon.testutil.TestClock;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -41,23 +44,28 @@ public class PrivacyTest {
   @Test
   public void privacyPrecompiled() throws IOException {
     final Path dataDir = folder.newFolder().toPath();
-    PrivacyParameters privacyParameters = PrivacyParameters.noPrivacy();
-    privacyParameters.setPrivacyAddress(ADDRESS);
-    privacyParameters.setEnabled(true);
+    PrivacyParameters privacyParameters =
+        new PrivacyParameters.Builder()
+            .setPrivacyAddress(ADDRESS)
+            .setEnabled(true)
+            .setDataDir(dataDir)
+            .build();
 
     MainnetPantheonController mainnetPantheonController =
         (MainnetPantheonController)
             PantheonController.fromConfig(
                 GenesisConfigFile.mainnet(),
                 SynchronizerConfiguration.builder().build(),
+                EthereumWireProtocolConfiguration.defaultConfig(),
                 new InMemoryStorageProvider(),
-                false,
                 1,
                 new MiningParametersTestBuilder().enabled(false).build(),
                 SECP256K1.KeyPair.generate(),
                 new NoOpMetricsSystem(),
                 privacyParameters,
-                dataDir);
+                dataDir,
+                TestClock.fixed(),
+                PendingTransactions.MAX_PENDING_TRANSACTIONS);
 
     Address privacyContractAddress = Address.privacyPrecompiled(ADDRESS);
     PrecompiledContract precompiledContract =

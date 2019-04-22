@@ -46,53 +46,54 @@ public class ProtocolScheduleBuilder<C> {
     validateForkOrdering();
 
     addProtocolSpec(
-        protocolSchedule, OptionalLong.of(0), MainnetProtocolSpecs.frontierDefinition());
+        protocolSchedule,
+        OptionalLong.of(0),
+        MainnetProtocolSpecs.frontierDefinition(config.getContractSizeLimit()));
     addProtocolSpec(
         protocolSchedule,
         config.getHomesteadBlockNumber(),
-        MainnetProtocolSpecs.homesteadDefinition());
+        MainnetProtocolSpecs.homesteadDefinition(config.getContractSizeLimit()));
 
     config
         .getDaoForkBlock()
         .ifPresent(
             daoBlockNumber -> {
-              if (daoBlockNumber > 0) {
-                final ProtocolSpec<C> originalProtocolSpec =
-                    protocolSchedule.getByBlockNumber(daoBlockNumber);
-                addProtocolSpec(
-                    protocolSchedule,
-                    OptionalLong.of(daoBlockNumber),
-                    MainnetProtocolSpecs.daoRecoveryInitDefinition());
-                addProtocolSpec(
-                    protocolSchedule,
-                    OptionalLong.of(daoBlockNumber + 1),
-                    MainnetProtocolSpecs.daoRecoveryTransitionDefinition());
+              final ProtocolSpec<C> originalProtocolSpec =
+                  protocolSchedule.getByBlockNumber(daoBlockNumber);
+              addProtocolSpec(
+                  protocolSchedule,
+                  OptionalLong.of(daoBlockNumber),
+                  MainnetProtocolSpecs.daoRecoveryInitDefinition(config.getContractSizeLimit()));
+              addProtocolSpec(
+                  protocolSchedule,
+                  OptionalLong.of(daoBlockNumber + 1),
+                  MainnetProtocolSpecs.daoRecoveryTransitionDefinition(
+                      config.getContractSizeLimit()));
 
-                // Return to the previous protocol spec after the dao fork has completed.
-                protocolSchedule.putMilestone(daoBlockNumber + 10, originalProtocolSpec);
-              }
+              // Return to the previous protocol spec after the dao fork has completed.
+              protocolSchedule.putMilestone(daoBlockNumber + 10, originalProtocolSpec);
             });
 
     addProtocolSpec(
         protocolSchedule,
         config.getTangerineWhistleBlockNumber(),
-        MainnetProtocolSpecs.tangerineWhistleDefinition());
+        MainnetProtocolSpecs.tangerineWhistleDefinition(config.getContractSizeLimit()));
     addProtocolSpec(
         protocolSchedule,
         config.getSpuriousDragonBlockNumber(),
-        MainnetProtocolSpecs.spuriousDragonDefinition(chainId));
+        MainnetProtocolSpecs.spuriousDragonDefinition(chainId, config.getContractSizeLimit()));
     addProtocolSpec(
         protocolSchedule,
         config.getByzantiumBlockNumber(),
-        MainnetProtocolSpecs.byzantiumDefinition(chainId));
+        MainnetProtocolSpecs.byzantiumDefinition(chainId, config.getContractSizeLimit()));
     addProtocolSpec(
         protocolSchedule,
         config.getConstantinopleBlockNumber(),
-        MainnetProtocolSpecs.constantinopleDefinition(chainId));
+        MainnetProtocolSpecs.constantinopleDefinition(chainId, config.getContractSizeLimit()));
     addProtocolSpec(
         protocolSchedule,
         config.getConstantinopleFixBlockNumber(),
-        MainnetProtocolSpecs.constantinopleFixDefinition(chainId));
+        MainnetProtocolSpecs.constantinopleFixDefinition(chainId, config.getContractSizeLimit()));
 
     LOG.info("Protocol schedule created with milestones: {}", protocolSchedule.listMilestones());
     return protocolSchedule;

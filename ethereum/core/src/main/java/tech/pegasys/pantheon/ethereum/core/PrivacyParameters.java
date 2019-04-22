@@ -14,11 +14,16 @@ package tech.pegasys.pantheon.ethereum.core;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import tech.pegasys.pantheon.crypto.SECP256K1;
+import tech.pegasys.pantheon.ethereum.privacy.PrivateStateStorage;
+import tech.pegasys.pantheon.ethereum.privacy.PrivateTransactionStorage;
 import tech.pegasys.pantheon.ethereum.storage.StorageProvider;
 import tech.pegasys.pantheon.ethereum.storage.keyvalue.RocksDbStorageProvider;
 import tech.pegasys.pantheon.ethereum.worldstate.WorldStateArchive;
 import tech.pegasys.pantheon.ethereum.worldstate.WorldStateStorage;
+import tech.pegasys.pantheon.metrics.MetricsSystem;
 import tech.pegasys.pantheon.metrics.noop.NoOpMetricsSystem;
+import tech.pegasys.pantheon.services.kvstore.RocksDbConfiguration;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,58 +33,20 @@ import java.nio.file.Path;
 import com.google.common.io.Files;
 
 public class PrivacyParameters {
-  private static final String ENCLAVE_URL = "http://localhost:8888";
-  public static final URI DEFAULT_ENCLAVE_URL = URI.create(ENCLAVE_URL);
-  private final String PRIVATE_DATABASE_PATH = "private";
+  public static final URI DEFAULT_ENCLAVE_URL = URI.create("http://localhost:8888");
+  public static final PrivacyParameters DEFAULT = new PrivacyParameters();
 
-  private Integer privacyAddress;
+  private Integer privacyAddress = Address.PRIVACY;
   private boolean enabled;
-  private String url;
-  private String publicKey;
-  private File publicKeyFile;
+  private URI enclaveUri;
+  private String enclavePublicKey;
+  private File enclavePublicKeyFile;
+  private SECP256K1.KeyPair signingKeyPair;
   private WorldStateArchive privateWorldStateArchive;
+  private StorageProvider privateStorageProvider;
 
-  public String getPublicKey() {
-    return publicKey;
-  }
-
-  public File getPublicKeyFile() {
-    return publicKeyFile;
-  }
-
-  public void setPublicKeyUsingFile(final File publicKeyFile) throws IOException {
-    this.publicKeyFile = publicKeyFile;
-    this.publicKey = Files.asCharSource(publicKeyFile, UTF_8).read();
-  }
-
-  public static PrivacyParameters noPrivacy() {
-    final PrivacyParameters config = new PrivacyParameters();
-    config.setEnabled(false);
-    config.setUrl(ENCLAVE_URL);
-    config.setPrivacyAddress(Address.PRIVACY);
-    return config;
-  }
-
-  @Override
-  public String toString() {
-    return "PrivacyParameters{" + "enabled=" + enabled + ", url='" + url + '\'' + '}';
-  }
-
-  public void setUrl(final String url) {
-    this.url = url;
-  }
-
-  public String getUrl() {
-    return this.url;
-  }
-
-  public boolean isEnabled() {
-    return enabled;
-  }
-
-  public void setEnabled(final boolean enabled) {
-    this.enabled = enabled;
-  }
+  private PrivateTransactionStorage privateTransactionStorage;
+  private PrivateStateStorage privateStateStorage;
 
   public Integer getPrivacyAddress() {
     return privacyAddress;
@@ -89,16 +56,158 @@ public class PrivacyParameters {
     this.privacyAddress = privacyAddress;
   }
 
-  public void enablePrivateDB(final Path path) throws IOException {
-    final Path privateDbPath = path.resolve(PRIVATE_DATABASE_PATH);
-    final StorageProvider privateStorageProvider =
-        RocksDbStorageProvider.create(privateDbPath, new NoOpMetricsSystem());
-    final WorldStateStorage privateWorldStateStorage =
-        privateStorageProvider.createWorldStateStorage();
-    this.privateWorldStateArchive = new WorldStateArchive(privateWorldStateStorage);
+  public Boolean isEnabled() {
+    return enabled;
+  }
+
+  public void setEnabled(final boolean enabled) {
+    this.enabled = enabled;
+  }
+
+  public URI getEnclaveUri() {
+    return enclaveUri;
+  }
+
+  public void setEnclaveUri(final URI enclaveUri) {
+    this.enclaveUri = enclaveUri;
+  }
+
+  public String getEnclavePublicKey() {
+    return enclavePublicKey;
+  }
+
+  public void setEnclavePublicKey(final String enclavePublicKey) {
+    this.enclavePublicKey = enclavePublicKey;
+  }
+
+  public File getEnclavePublicKeyFile() {
+    return enclavePublicKeyFile;
+  }
+
+  public void setEnclavePublicKeyFile(final File enclavePublicKeyFile) {
+    this.enclavePublicKeyFile = enclavePublicKeyFile;
+  }
+
+  public SECP256K1.KeyPair getSigningKeyPair() {
+    return signingKeyPair;
+  }
+
+  public void setSigningKeyPair(final SECP256K1.KeyPair signingKeyPair) {
+    this.signingKeyPair = signingKeyPair;
   }
 
   public WorldStateArchive getPrivateWorldStateArchive() {
     return privateWorldStateArchive;
+  }
+
+  public void setPrivateWorldStateArchive(final WorldStateArchive privateWorldStateArchive) {
+    this.privateWorldStateArchive = privateWorldStateArchive;
+  }
+
+  public StorageProvider getPrivateStorageProvider() {
+    return privateStorageProvider;
+  }
+
+  public void setPrivateStorageProvider(final StorageProvider privateStorageProvider) {
+    this.privateStorageProvider = privateStorageProvider;
+  }
+
+  public PrivateTransactionStorage getPrivateTransactionStorage() {
+    return privateTransactionStorage;
+  }
+
+  public void setPrivateTransactionStorage(
+      final PrivateTransactionStorage privateTransactionStorage) {
+    this.privateTransactionStorage = privateTransactionStorage;
+  }
+
+  public PrivateStateStorage getPrivateStateStorage() {
+    return privateStateStorage;
+  }
+
+  public void setPrivateStateStorage(final PrivateStateStorage privateStateStorage) {
+    this.privateStateStorage = privateStateStorage;
+  }
+
+  @Override
+  public String toString() {
+    return "PrivacyParameters{" + "enabled=" + enabled + ", enclaveUri='" + enclaveUri + '\'' + '}';
+  }
+
+  public static class Builder {
+    private final String PRIVATE_DATABASE_PATH = "private";
+
+    private boolean enabled;
+    private URI enclaveUrl;
+    private Integer privacyAddress = Address.PRIVACY;
+    private MetricsSystem metricsSystem = new NoOpMetricsSystem();
+    private Path dataDir;
+    private File enclavePublicKeyFile;
+    private String enclavePublicKey;
+
+    public Builder setPrivacyAddress(final Integer privacyAddress) {
+      this.privacyAddress = privacyAddress;
+      return this;
+    }
+
+    public Builder setEnclaveUrl(final URI enclaveUrl) {
+      this.enclaveUrl = enclaveUrl;
+      return this;
+    }
+
+    public Builder setEnabled(final boolean enabled) {
+      this.enabled = enabled;
+      return this;
+    }
+
+    public Builder setMetricsSystem(final MetricsSystem metricsSystem) {
+      this.metricsSystem = metricsSystem;
+      return this;
+    }
+
+    public Builder setDataDir(final Path dataDir) {
+      this.dataDir = dataDir;
+      return this;
+    }
+
+    public PrivacyParameters build() throws IOException {
+      PrivacyParameters config = new PrivacyParameters();
+      if (enabled) {
+        Path privateDbPath = dataDir.resolve(PRIVATE_DATABASE_PATH);
+        StorageProvider privateStorageProvider =
+            RocksDbStorageProvider.create(
+                new RocksDbConfiguration.Builder()
+                    .databaseDir(privateDbPath)
+                    .label("private_state")
+                    .build(),
+                metricsSystem);
+        WorldStateStorage privateWorldStateStorage =
+            privateStorageProvider.createWorldStateStorage();
+        WorldStateArchive privateWorldStateArchive =
+            new WorldStateArchive(privateWorldStateStorage);
+
+        PrivateTransactionStorage privateTransactionStorage =
+            privateStorageProvider.createPrivateTransactionStorage();
+        PrivateStateStorage privateStateStorage =
+            privateStorageProvider.createPrivateStateStorage();
+
+        config.setPrivateWorldStateArchive(privateWorldStateArchive);
+        config.setEnclavePublicKey(enclavePublicKey);
+        config.setEnclavePublicKeyFile(enclavePublicKeyFile);
+        config.setPrivateStorageProvider(privateStorageProvider);
+        config.setPrivateTransactionStorage(privateTransactionStorage);
+        config.setPrivateStateStorage(privateStateStorage);
+      }
+      config.setEnabled(enabled);
+      config.setEnclaveUri(enclaveUrl);
+      config.setPrivacyAddress(privacyAddress);
+      return config;
+    }
+
+    public Builder setEnclavePublicKeyUsingFile(final File publicKeyFile) throws IOException {
+      this.enclavePublicKeyFile = publicKeyFile;
+      this.enclavePublicKey = Files.asCharSource(publicKeyFile, UTF_8).read();
+      return this;
+    }
   }
 }
