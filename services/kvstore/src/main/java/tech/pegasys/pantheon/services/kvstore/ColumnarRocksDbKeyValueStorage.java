@@ -55,7 +55,7 @@ public class ColumnarRocksDbKeyValueStorage
   private final TransactionDB db;
   private final AtomicBoolean closed = new AtomicBoolean(false);
   private final Map<String, ColumnFamilyHandle> columnHandlesByName;
-  private final MonitorableKeyValueStorage monitorableKeyValueStorage;
+  private final RocksDBMetricsHelper rocksDBMetricsHelper;
 
   public static ColumnarRocksDbKeyValueStorage create(
       final RocksDbConfiguration rocksDbConfiguration,
@@ -102,8 +102,8 @@ public class ColumnarRocksDbKeyValueStorage
               rocksDbConfiguration.getDatabaseDir().toString(),
               columnDescriptors,
               columnHandles);
-      monitorableKeyValueStorage =
-          MonitorableKeyValueStorage.of(metricsSystem, rocksDbConfiguration, db, stats);
+      rocksDBMetricsHelper =
+          RocksDBMetricsHelper.of(metricsSystem, rocksDbConfiguration, db, stats);
       final Map<BytesValue, String> segmentsById =
           segments.stream()
               .collect(
@@ -141,7 +141,7 @@ public class ColumnarRocksDbKeyValueStorage
     throwIfClosed();
 
     try (final OperationTimer.TimingContext ignored =
-        monitorableKeyValueStorage.getReadLatency().startTimer()) {
+        rocksDBMetricsHelper.getReadLatency().startTimer()) {
       return Optional.ofNullable(db.get(segment, key.getArrayUnsafe())).map(BytesValue::wrap);
     } catch (final RocksDBException e) {
       throw new StorageException(e);
@@ -221,7 +221,7 @@ public class ColumnarRocksDbKeyValueStorage
     protected void doPut(
         final ColumnFamilyHandle segment, final BytesValue key, final BytesValue value) {
       try (final OperationTimer.TimingContext ignored =
-          monitorableKeyValueStorage.getWriteLatency().startTimer()) {
+          rocksDBMetricsHelper.getWriteLatency().startTimer()) {
         innerTx.put(segment, key.getArrayUnsafe(), value.getArrayUnsafe());
       } catch (final RocksDBException e) {
         throw new StorageException(e);
@@ -231,7 +231,7 @@ public class ColumnarRocksDbKeyValueStorage
     @Override
     protected void doRemove(final ColumnFamilyHandle segment, final BytesValue key) {
       try (final OperationTimer.TimingContext ignored =
-          monitorableKeyValueStorage.getRemoveLatency().startTimer()) {
+          rocksDBMetricsHelper.getRemoveLatency().startTimer()) {
         innerTx.delete(segment, key.getArrayUnsafe());
       } catch (final RocksDBException e) {
         throw new StorageException(e);
@@ -241,7 +241,7 @@ public class ColumnarRocksDbKeyValueStorage
     @Override
     protected void doCommit() throws StorageException {
       try (final OperationTimer.TimingContext ignored =
-          monitorableKeyValueStorage.getCommitLatency().startTimer()) {
+          rocksDBMetricsHelper.getCommitLatency().startTimer()) {
         innerTx.commit();
       } catch (final RocksDBException e) {
         throw new StorageException(e);
@@ -254,7 +254,7 @@ public class ColumnarRocksDbKeyValueStorage
     protected void doRollback() {
       try {
         innerTx.rollback();
-        monitorableKeyValueStorage.getRollbackCount().inc();
+        rocksDBMetricsHelper.getRollbackCount().inc();
       } catch (final RocksDBException e) {
         throw new StorageException(e);
       } finally {

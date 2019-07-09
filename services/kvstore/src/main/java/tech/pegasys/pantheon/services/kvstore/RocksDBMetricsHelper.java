@@ -25,7 +25,7 @@ import org.rocksdb.RocksDBException;
 import org.rocksdb.Statistics;
 import org.rocksdb.TransactionDB;
 
-public class MonitorableKeyValueStorage {
+public class RocksDBMetricsHelper {
   private static final Logger LOG = LogManager.getLogger();
 
   private final OperationTimer readLatency;
@@ -34,7 +34,7 @@ public class MonitorableKeyValueStorage {
   private final OperationTimer commitLatency;
   private final Counter rollbackCount;
 
-  private MonitorableKeyValueStorage(
+  private RocksDBMetricsHelper(
       final OperationTimer readLatency,
       final OperationTimer removeLatency,
       final OperationTimer writeLatency,
@@ -47,7 +47,7 @@ public class MonitorableKeyValueStorage {
     this.rollbackCount = rollbackCount;
   }
 
-  public static MonitorableKeyValueStorage of(
+  public static RocksDBMetricsHelper of(
       final MetricsSystem metricsSystem,
       final RocksDbConfiguration rocksDbConfiguration,
       final TransactionDB db,
@@ -124,7 +124,7 @@ public class MonitorableKeyValueStorage {
                 "database")
             .labels(rocksDbConfiguration.getLabel());
 
-    return new MonitorableKeyValueStorage(
+    return new RocksDBMetricsHelper(
         readLatency, removeLatency, writeLatency, commitLatency, rollbackCount);
   }
 

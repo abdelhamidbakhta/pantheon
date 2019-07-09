@@ -42,7 +42,7 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
   private final TransactionDBOptions txOptions;
   private final TransactionDB db;
   private final AtomicBoolean closed = new AtomicBoolean(false);
-  private final MonitorableKeyValueStorage monitorableKeyValueStorage;
+  private final RocksDBMetricsHelper rocksDBMetricsHelper;
 
   public static KeyValueStorage create(
       final RocksDbConfiguration rocksDbConfiguration, final MetricsSystem metricsSystem)
@@ -66,8 +66,8 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
 
       txOptions = new TransactionDBOptions();
       db = TransactionDB.open(options, txOptions, rocksDbConfiguration.getDatabaseDir().toString());
-      monitorableKeyValueStorage =
-          MonitorableKeyValueStorage.of(metricsSystem, rocksDbConfiguration, db, stats);
+      rocksDBMetricsHelper =
+          RocksDBMetricsHelper.of(metricsSystem, rocksDbConfiguration, db, stats);
     } catch (final RocksDBException e) {
       throw new StorageException(e);
     }
@@ -83,7 +83,7 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
     throwIfClosed();
 
     try (final OperationTimer.TimingContext ignored =
-        monitorableKeyValueStorage.getReadLatency().startTimer()) {
+        rocksDBMetricsHelper.getReadLatency().startTimer()) {
       return Optional.ofNullable(db.get(key.getArrayUnsafe())).map(BytesValue::wrap);
     } catch (final RocksDBException e) {
       throw new StorageException(e);
@@ -162,7 +162,7 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
     @Override
     protected void doPut(final BytesValue key, final BytesValue value) {
       try (final OperationTimer.TimingContext ignored =
-          monitorableKeyValueStorage.getWriteLatency().startTimer()) {
+          rocksDBMetricsHelper.getWriteLatency().startTimer()) {
         innerTx.put(key.getArrayUnsafe(), value.getArrayUnsafe());
       } catch (final RocksDBException e) {
         throw new StorageException(e);
@@ -172,7 +172,7 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
     @Override
     protected void doRemove(final BytesValue key) {
       try (final OperationTimer.TimingContext ignored =
-          monitorableKeyValueStorage.getRemoveLatency().startTimer()) {
+          rocksDBMetricsHelper.getRemoveLatency().startTimer()) {
         innerTx.delete(key.getArrayUnsafe());
       } catch (final RocksDBException e) {
         throw new StorageException(e);
@@ -182,7 +182,7 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
     @Override
     protected void doCommit() throws StorageException {
       try (final OperationTimer.TimingContext ignored =
-          monitorableKeyValueStorage.getCommitLatency().startTimer()) {
+          rocksDBMetricsHelper.getCommitLatency().startTimer()) {
         innerTx.commit();
       } catch (final RocksDBException e) {
         throw new StorageException(e);
@@ -195,7 +195,7 @@ public class RocksDbKeyValueStorage implements KeyValueStorage, Closeable {
     protected void doRollback() {
       try {
         innerTx.rollback();
-        monitorableKeyValueStorage.getRollbackCount().inc();
+        rocksDBMetricsHelper.getRollbackCount().inc();
       } catch (final RocksDBException e) {
         throw new StorageException(e);
       } finally {
