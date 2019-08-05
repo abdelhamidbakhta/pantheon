@@ -25,6 +25,7 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.AdminChangeLogLev
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.AdminNodeInfo;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.AdminPeers;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.AdminRemovePeer;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.DebugAccountRange;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.DebugMetrics;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.DebugStorageRangeAt;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.DebugTraceBlock;
@@ -65,6 +66,7 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.EthNewFilter;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.EthNewPendingTransactionFilter;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.EthProtocolVersion;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.EthSendRawTransaction;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.EthSendTransaction;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.EthSyncing;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.EthUninstallFilter;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.JsonRpcMethod;
@@ -89,13 +91,14 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.permissioning.Per
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.permissioning.PermReloadPermissionsFromFile;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.permissioning.PermRemoveAccountsFromWhitelist;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.permissioning.PermRemoveNodesFromWhitelist;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaCreatePrivacyGroup;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaDeletePrivacyGroup;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaGetPrivacyPrecompileAddress;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaGetPrivateTransaction;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaGetTransactionCount;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaGetTransactionReceipt;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaSendRawTransaction;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.eea.EeaGetTransactionReceipt;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.eea.EeaSendRawTransaction;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.priv.PrivCreatePrivacyGroup;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.priv.PrivDeletePrivacyGroup;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.priv.PrivFindPrivacyGroup;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.priv.PrivGetPrivacyPrecompileAddress;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.priv.PrivGetPrivateTransaction;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.priv.PrivGetTransactionCount;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.parameters.JsonRpcParameter;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockReplay;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTracer;
@@ -234,6 +237,7 @@ public class JsonRpcMethodsFactory {
           new EthSyncing(synchronizer),
           new EthGetStorageAt(blockchainQueries, parameter),
           new EthSendRawTransaction(transactionPool, parameter),
+          new EthSendTransaction(),
           new EthEstimateGas(
               blockchainQueries,
               new TransactionSimulator(
@@ -259,6 +263,7 @@ public class JsonRpcMethodsFactory {
           enabledMethods,
           new DebugTraceTransaction(
               blockchainQueries, new TransactionTracer(blockReplay), parameter),
+          new DebugAccountRange(parameter, blockchainQueries),
           new DebugStorageRangeAt(parameter, blockchainQueries, blockReplay),
           new DebugMetrics(metricsSystem),
           new DebugTraceBlock(
@@ -318,25 +323,38 @@ public class JsonRpcMethodsFactory {
           new AdminPeers(p2pNetwork),
           new AdminChangeLogLevel(parameter));
     }
-    if (rpcApis.contains(RpcApis.EEA)) {
+
+    boolean eea = rpcApis.contains(RpcApis.EEA), priv = rpcApis.contains(RpcApis.PRIV);
+    if (eea || priv) {
       final PrivateTransactionHandler privateTransactionHandler =
-          new PrivateTransactionHandler(privacyParameters);
+          new PrivateTransactionHandler(privacyParameters, protocolSchedule.getChainId());
       final Enclave enclave = new Enclave(privacyParameters.getEnclaveUri());
-      addMethods(
-          enabledMethods,
-          new EeaGetTransactionReceipt(blockchainQueries, enclave, parameter, privacyParameters),
-          new EeaSendRawTransaction(
-              blockchainQueries, privateTransactionHandler, transactionPool, parameter),
-          new EeaGetTransactionCount(parameter, privateTransactionHandler),
-          new EeaGetPrivateTransaction(enclave, parameter, privacyParameters),
-          new EeaCreatePrivacyGroup(new Enclave(privacyParameters.getEnclaveUri()), parameter),
-          new EeaDeletePrivacyGroup(new Enclave(privacyParameters.getEnclaveUri()), parameter),
-          new EeaGetPrivacyPrecompileAddress(privacyParameters));
+      if (eea) {
+        addMethods(
+            enabledMethods,
+            new EeaGetTransactionReceipt(blockchainQueries, enclave, parameter, privacyParameters),
+            new EeaSendRawTransaction(
+                blockchainQueries, privateTransactionHandler, transactionPool, parameter));
+      }
+      if (priv) {
+        addMethods(
+            enabledMethods,
+            new PrivCreatePrivacyGroup(
+                new Enclave(privacyParameters.getEnclaveUri()), privacyParameters, parameter),
+            new PrivDeletePrivacyGroup(
+                new Enclave(privacyParameters.getEnclaveUri()), privacyParameters, parameter),
+            new PrivFindPrivacyGroup(new Enclave(privacyParameters.getEnclaveUri()), parameter),
+            new PrivGetPrivacyPrecompileAddress(privacyParameters),
+            new PrivGetTransactionCount(parameter, privateTransactionHandler),
+            new PrivGetPrivateTransaction(
+                blockchainQueries, enclave, parameter, privacyParameters));
+      }
     }
+
     return enabledMethods;
   }
 
-  private void addMethods(
+  public static void addMethods(
       final Map<String, JsonRpcMethod> methods, final JsonRpcMethod... rpcMethods) {
     for (final JsonRpcMethod rpcMethod : rpcMethods) {
       methods.put(rpcMethod.getName(), rpcMethod);

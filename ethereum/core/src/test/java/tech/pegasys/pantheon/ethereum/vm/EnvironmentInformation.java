@@ -12,6 +12,7 @@
  */
 package tech.pegasys.pantheon.ethereum.vm;
 
+import tech.pegasys.pantheon.ethereum.core.Account;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.BlockHeader;
 import tech.pegasys.pantheon.ethereum.core.Gas;
@@ -33,11 +34,15 @@ public class EnvironmentInformation {
 
   private final Address accountAddress;
 
+  private final Wei accountBalance;
+
   private BlockHeader blockHeader;
 
   private final Address callerAddress;
 
   private final Code code;
+
+  private final int version;
 
   private final BytesValue data;
 
@@ -66,44 +71,52 @@ public class EnvironmentInformation {
   @JsonCreator
   public EnvironmentInformation(
       @JsonProperty("address") final String account,
+      @JsonProperty("balance") final String balance,
       @JsonProperty("caller") final String caller,
       @JsonProperty("code") final CodeMock code,
       @JsonProperty("data") final String data,
       @JsonProperty("gas") final String gas,
       @JsonProperty("gasPrice") final String gasPrice,
       @JsonProperty("origin") final String origin,
-      @JsonProperty("value") final String value) {
+      @JsonProperty("value") final String value,
+      @JsonProperty("version") final String version) {
     this(
         code,
         0,
         account == null ? null : Address.fromHexString(account),
+        balance == null ? Wei.ZERO : Wei.fromHexString(balance),
         caller == null ? null : Address.fromHexString(caller),
         origin == null ? null : Address.fromHexString(origin),
         data == null ? null : BytesValue.fromHexString(data),
         value == null ? null : Wei.fromHexString(value),
         gasPrice == null ? null : Wei.fromHexString(gasPrice),
-        gas == null ? null : Gas.fromHexString(gas));
+        gas == null ? null : Gas.fromHexString(gas),
+        version == null ? Account.DEFAULT_VERSION : Integer.decode(version));
   }
 
   private EnvironmentInformation(
       final Code code,
       final int depth,
       final Address accountAddress,
+      final Wei accountBalance,
       final Address callerAddress,
       final Address originAddress,
       final BytesValue data,
       final Wei value,
       final Wei gasPrice,
-      final Gas gas) {
+      final Gas gas,
+      final int version) {
     this.code = code;
     this.depth = depth;
     this.accountAddress = accountAddress;
+    this.accountBalance = accountBalance;
     this.callerAddress = callerAddress;
     this.originAddress = originAddress;
     this.data = data;
     this.value = value;
     this.gasPrice = gasPrice;
     this.gas = gas;
+    this.version = version;
   }
 
   /**
@@ -123,6 +136,11 @@ public class EnvironmentInformation {
   /** @return The address of the currently executing account. */
   public Address getAccountAddress() {
     return accountAddress;
+  }
+
+  /** @return The balance of the currently executing account */
+  public Wei getAccountBalance() {
+    return accountBalance;
   }
 
   /** @return Address of the caller. */
@@ -165,6 +183,10 @@ public class EnvironmentInformation {
     return originAddress;
   }
 
+  public int getVersion() {
+    return version;
+  }
+
   @Override
   public String toString() {
     final StringBuilder builder = new StringBuilder();
@@ -180,7 +202,9 @@ public class EnvironmentInformation {
         .append("\nBlock header: \n  ")
         .append(blockHeader.toString().replaceAll("\n", "\n  "))
         .append("\nCaller: ")
-        .append(callerAddress);
+        .append(callerAddress)
+        .append("\nVersion: ")
+        .append(version);
 
     return builder.toString();
   }

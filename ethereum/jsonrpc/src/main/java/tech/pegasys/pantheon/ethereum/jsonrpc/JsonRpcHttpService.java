@@ -166,7 +166,10 @@ public class JsonRpcHttpService {
     // Create the HTTP server and a router object.
     httpServer =
         vertx.createHttpServer(
-            new HttpServerOptions().setHost(config.getHost()).setPort(config.getPort()));
+            new HttpServerOptions()
+                .setHost(config.getHost())
+                .setPort(config.getPort())
+                .setHandle100ContinueAutomatically(true));
 
     // Handle json rpc requests
     final Router router = Router.router(vertx);
@@ -493,7 +496,7 @@ public class JsonRpcHttpService {
       try (final TimingContext ignored = requestTimer.labels(request.getMethod()).startTimer()) {
         return method.response(request);
       } catch (final InvalidJsonRpcParameters e) {
-        LOG.debug(e);
+        LOG.debug("Invalid Params", e);
         return errorResponse(id, JsonRpcError.INVALID_PARAMS);
       } catch (final RuntimeException e) {
         LOG.error("Error processing JSON-RPC request", e);

@@ -146,7 +146,6 @@ public class ThreadPantheonNodeRunner implements PantheonNodeRunner {
             .p2pAdvertisedHost(node.getHostName())
             .p2pListenPort(0)
             .maxPeers(25)
-            .fractionRemoteConnectionsAllowed(1.0)
             .networkingConfiguration(node.getNetworkingConfiguration())
             .jsonRpcConfiguration(node.jsonRpcConfiguration())
             .webSocketConfiguration(node.webSocketConfiguration())
@@ -155,6 +154,10 @@ public class ThreadPantheonNodeRunner implements PantheonNodeRunner {
             .metricsConfiguration(node.metricsConfiguration())
             .p2pEnabled(node.isP2pEnabled())
             .graphQLConfiguration(GraphQLConfiguration.createDefault())
+            .staticNodes(
+                node.getStaticNodes().stream()
+                    .map(EnodeURL::fromString)
+                    .collect(Collectors.toList()))
             .build();
 
     runner.start();

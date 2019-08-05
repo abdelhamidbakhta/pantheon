@@ -16,6 +16,7 @@ import static tech.pegasys.pantheon.ethereum.vm.MessageFrame.DEFAULT_MAX_STACK_S
 
 import tech.pegasys.pantheon.ethereum.MainnetBlockValidator;
 import tech.pegasys.pantheon.ethereum.chain.Blockchain;
+import tech.pegasys.pantheon.ethereum.core.Account;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.BlockHeader;
 import tech.pegasys.pantheon.ethereum.core.MutableAccount;
@@ -27,6 +28,7 @@ import tech.pegasys.pantheon.ethereum.core.WorldState;
 import tech.pegasys.pantheon.ethereum.core.WorldUpdater;
 import tech.pegasys.pantheon.ethereum.mainnet.contractvalidation.MaxCodeSizeRule;
 import tech.pegasys.pantheon.ethereum.privacy.PrivateTransactionProcessor;
+import tech.pegasys.pantheon.ethereum.privacy.PrivateTransactionValidator;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -97,25 +99,30 @@ public abstract class MainnetProtocolSpecs {
                     contractCreationProcessor,
                     messageCallProcessor,
                     false,
-                    stackSizeLimit))
+                    stackSizeLimit,
+                    Account.DEFAULT_VERSION))
         .privateTransactionProcessorBuilder(
             (gasCalculator,
                 transactionValidator,
                 contractCreationProcessor,
-                messageCallProcessor) ->
+                messageCallProcessor,
+                privateTransactionValidator) ->
                 new PrivateTransactionProcessor(
                     gasCalculator,
                     transactionValidator,
                     contractCreationProcessor,
                     messageCallProcessor,
                     false,
-                    stackSizeLimit))
+                    stackSizeLimit,
+                    Account.DEFAULT_VERSION,
+                    new PrivateTransactionValidator(Optional.empty())))
         .difficultyCalculator(MainnetDifficultyCalculators.FRONTIER)
         .blockHeaderValidatorBuilder(MainnetBlockHeaderValidator::create)
         .ommerHeaderValidatorBuilder(MainnetBlockHeaderValidator::createOmmerValidator)
         .blockBodyValidatorBuilder(MainnetBlockBodyValidator::new)
         .transactionReceiptFactory(MainnetProtocolSpecs::frontierTransactionReceiptFactory)
         .blockReward(FRONTIER_BLOCK_REWARD)
+        .skipZeroBlockRewards(false)
         .blockProcessorBuilder(MainnetBlockProcessor::new)
         .blockValidatorBuilder(MainnetBlockValidator::new)
         .blockImporterBuilder(MainnetBlockImporter::new)
@@ -153,13 +160,15 @@ public abstract class MainnetProtocolSpecs {
             (transactionProcessor,
                 transactionReceiptFactory,
                 blockReward,
-                miningBeneficiaryCalculator) ->
+                miningBeneficiaryCalculator,
+                skipZeroBlockRewards) ->
                 new DaoBlockProcessor(
                     new MainnetBlockProcessor(
                         transactionProcessor,
                         transactionReceiptFactory,
                         blockReward,
-                        miningBeneficiaryCalculator)))
+                        miningBeneficiaryCalculator,
+                        skipZeroBlockRewards)))
         .name("DaoRecoveryInit");
   }
 
@@ -187,6 +196,7 @@ public abstract class MainnetProtocolSpecs {
 
     return tangerineWhistleDefinition(OptionalInt.empty(), configStackSizeLimit)
         .gasCalculator(SpuriousDragonGasCalculator::new)
+        .skipZeroBlockRewards(true)
         .messageCallProcessorBuilder(
             (evm, precompileContractRegistry) ->
                 new MainnetMessageCallProcessor(
@@ -215,19 +225,24 @@ public abstract class MainnetProtocolSpecs {
                     contractCreationProcessor,
                     messageCallProcessor,
                     true,
-                    stackSizeLimit))
+                    stackSizeLimit,
+                    Account.DEFAULT_VERSION))
+        .privateTransactionValidatorBuilder(() -> new PrivateTransactionValidator(chainId))
         .privateTransactionProcessorBuilder(
             (gasCalculator,
                 transactionValidator,
                 contractCreationProcessor,
-                messageCallProcessor) ->
+                messageCallProcessor,
+                privateTransactionValidator) ->
                 new PrivateTransactionProcessor(
                     gasCalculator,
                     transactionValidator,
                     contractCreationProcessor,
                     messageCallProcessor,
                     false,
-                    stackSizeLimit))
+                    stackSizeLimit,
+                    Account.DEFAULT_VERSION,
+                    privateTransactionValidator))
         .name("SpuriousDragon");
   }
 
@@ -282,6 +297,11 @@ public abstract class MainnetProtocolSpecs {
         configContractSizeLimit.orElse(SPURIOUS_DRAGON_CONTRACT_SIZE_LIMIT);
     return constantinopleFixDefinition(
             chainId, configContractSizeLimit, configStackSizeLimit, enableRevertReason)
+        .gasCalculator(IstanbulGasCalculator::new)
+        .evmBuilder(
+            gasCalculator ->
+                MainnetEvmRegistries.istanbul(gasCalculator, chainId.orElse(BigInteger.ZERO)))
+        .precompileContractRegistryBuilder(MainnetPrecompiledContractRegistries::istanbul)
         .contractCreationProcessorBuilder(
             (gasCalculator, evm) ->
                 new MainnetContractCreationProcessor(
@@ -290,8 +310,7 @@ public abstract class MainnetProtocolSpecs {
                     true,
                     Collections.singletonList(MaxCodeSizeRule.of(contractSizeLimit)),
                     1,
-                    SPURIOUS_DRAGON_FORCE_DELETE_WHEN_EMPTY_ADDRESSES,
-                    1))
+                    SPURIOUS_DRAGON_FORCE_DELETE_WHEN_EMPTY_ADDRESSES))
         .name("Istanbul");
   }
 

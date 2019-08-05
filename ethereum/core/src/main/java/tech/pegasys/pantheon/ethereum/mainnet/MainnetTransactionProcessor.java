@@ -48,7 +48,10 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
   private final AbstractMessageProcessor contractCreationProcessor;
 
   private final AbstractMessageProcessor messageCallProcessor;
+
   private final int maxStackSize;
+
+  private final int createContractAccountVersion;
 
   public static class Result implements TransactionProcessor.Result {
 
@@ -61,7 +64,7 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
     private final BytesValue output;
 
     private final ValidationResult<TransactionInvalidReason> validationResult;
-    private final Optional<String> revertReason;
+    private final Optional<BytesValue> revertReason;
 
     public static Result invalid(
         final ValidationResult<TransactionInvalidReason> validationResult) {
@@ -77,7 +80,7 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
     public static Result failed(
         final long gasRemaining,
         final ValidationResult<TransactionInvalidReason> validationResult,
-        final Optional<String> revertReason) {
+        final Optional<BytesValue> revertReason) {
       return new Result(
           Status.FAILED,
           LogSeries.empty(),
@@ -102,7 +105,7 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
         final long gasRemaining,
         final BytesValue output,
         final ValidationResult<TransactionInvalidReason> validationResult,
-        final Optional<String> revertReason) {
+        final Optional<BytesValue> revertReason) {
       this.status = status;
       this.logs = logs;
       this.gasRemaining = gasRemaining;
@@ -137,7 +140,7 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
     }
 
     @Override
-    public Optional<String> getRevertReason() {
+    public Optional<BytesValue> getRevertReason() {
       return revertReason;
     }
   }
@@ -150,13 +153,15 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
       final AbstractMessageProcessor contractCreationProcessor,
       final AbstractMessageProcessor messageCallProcessor,
       final boolean clearEmptyAccounts,
-      final int maxStackSize) {
+      final int maxStackSize,
+      final int createContractAccountVersion) {
     this.gasCalculator = gasCalculator;
     this.transactionValidator = transactionValidator;
     this.contractCreationProcessor = contractCreationProcessor;
     this.messageCallProcessor = messageCallProcessor;
     this.clearEmptyAccounts = clearEmptyAccounts;
     this.maxStackSize = maxStackSize;
+    this.createContractAccountVersion = createContractAccountVersion;
   }
 
   @Override
@@ -229,6 +234,8 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
               .address(contractAddress)
               .originator(senderAddress)
               .contract(contractAddress)
+              .contractBalance(sender.getBalance())
+              .contractAccountVersion(createContractAccountVersion)
               .gasPrice(transaction.getGasPrice())
               .inputData(BytesValue.EMPTY)
               .sender(senderAddress)
@@ -258,6 +265,9 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
               .address(to)
               .originator(senderAddress)
               .contract(to)
+              .contractBalance(contract != null ? contract.getBalance() : Wei.ZERO)
+              .contractAccountVersion(
+                  contract != null ? contract.getVersion() : Account.DEFAULT_VERSION)
               .gasPrice(transaction.getGasPrice())
               .inputData(transaction.getPayload())
               .sender(senderAddress)
