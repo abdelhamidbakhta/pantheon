@@ -881,7 +881,7 @@ public class WorldStateDownloaderTest {
     // We shouldn't have any extra data locally
     assertThat(localStorage.contains(otherHeader.getStateRoot())).isFalse();
     for (final Account otherAccount : otherAccounts) {
-      assertThat(localWorldState.get(otherAccount.getAddress())).isNull();
+      assertThat(localWorldState.get(otherAccount.getAddress().get())).isNull();
     }
   }
 
@@ -933,7 +933,7 @@ public class WorldStateDownloaderTest {
   private void assertAccountsMatch(
       final WorldState worldState, final List<Account> expectedAccounts) {
     for (final Account expectedAccount : expectedAccounts) {
-      final Account actualAccount = worldState.get(expectedAccount.getAddress());
+      final Account actualAccount = worldState.get(expectedAccount.getAddress().get());
       assertThat(actualAccount).isNotNull();
       // Check each field
       assertThat(actualAccount.getNonce()).isEqualTo(expectedAccount.getNonce());

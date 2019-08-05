@@ -31,7 +31,7 @@ public class AccountAdapter extends AdapterBase {
   }
 
   public Optional<Address> getAddress() {
-    return Optional.of(account.getAddress());
+    return account.getAddress();
   }
 
   public Optional<UInt256> getBalance() {
