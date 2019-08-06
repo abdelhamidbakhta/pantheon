@@ -335,7 +335,7 @@ public class MainnetTransactionProcessor implements TransactionProcessor {
   private static void clearEmptyAccounts(final WorldUpdater worldState) {
     worldState.getTouchedAccounts().stream()
         .filter(Account::isEmpty)
-        .forEach(account -> worldState.deleteAccount(account.getAddress().get()));
+        .forEach(a -> worldState.deleteAccount(a.getAddress()));
   }
 
   private void process(final MessageFrame frame, final OperationTracer operationTracer) {

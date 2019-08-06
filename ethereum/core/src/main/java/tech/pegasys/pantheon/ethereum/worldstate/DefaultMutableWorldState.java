@@ -233,8 +233,8 @@ public class DefaultMutableWorldState implements MutableWorldState {
     }
 
     @Override
-    public Optional<Address> getAddress() {
-      return Optional.ofNullable(address);
+    public Address getAddress() {
+      return address;
     }
 
     @Override
@@ -381,9 +381,9 @@ public class DefaultMutableWorldState implements MutableWorldState {
 
         // Save the code in key-value storage ...
         Hash codeHash = origin == null ? Hash.EMPTY : origin.getCodeHash();
-        if (updated.codeWasUpdated() && updated.getAddress().isPresent()) {
+        if (updated.codeWasUpdated()) {
           codeHash = Hash.hash(updated.getCode());
-          wrapped.updatedAccountCode.put(updated.getAddress().get(), updated.getCode());
+          wrapped.updatedAccountCode.put(updated.getAddress(), updated.getCode());
         }
         // ...and storage in the account trie first.
         final boolean freshState = origin == null || updated.getStorageWasCleared();
@@ -392,13 +392,13 @@ public class DefaultMutableWorldState implements MutableWorldState {
           wrapped.updatedStorageTries.remove(updated.getAddress());
         }
         final SortedMap<UInt256, UInt256> updatedStorage = updated.getUpdatedStorage();
-        if (!updatedStorage.isEmpty() && updated.getAddress().isPresent()) {
+        if (!updatedStorage.isEmpty()) {
           // Apply any storage updates
           final MerklePatriciaTrie<Bytes32, BytesValue> storageTrie =
               freshState
                   ? wrapped.newAccountStorageTrie(Hash.EMPTY_TRIE_HASH)
                   : origin.storageTrie();
-          wrapped.updatedStorageTries.put(updated.getAddress().get(), storageTrie);
+          wrapped.updatedStorageTries.put(updated.getAddress(), storageTrie);
           for (final Map.Entry<UInt256, UInt256> entry : updatedStorage.entrySet()) {
             final UInt256 value = entry.getValue();
             final Hash keyHash = Hash.hash(entry.getKey().getBytes());
@@ -413,10 +413,7 @@ public class DefaultMutableWorldState implements MutableWorldState {
         }
 
         // Save address preimage
-        updated
-            .getAddress()
-            .ifPresent(
-                address -> wrapped.newAccountKeyPreimages.put(updated.getAddressHash(), address));
+        wrapped.newAccountKeyPreimages.put(updated.getAddressHash(), updated.getAddress());
         // Lastly, save the new account.
         final BytesValue account =
             serializeAccount(

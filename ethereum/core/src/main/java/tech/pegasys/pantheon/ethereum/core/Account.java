@@ -17,7 +17,6 @@ import tech.pegasys.pantheon.util.bytes.BytesValue;
 import tech.pegasys.pantheon.util.uint.UInt256;
 
 import java.util.NavigableMap;
-import java.util.Optional;
 
 /**
  * A world state account.
@@ -52,7 +51,7 @@ public interface Account {
    * @return the Keccak-256 hash of the account address.
    */
   default Hash getAddressHash() {
-    return Hash.hash(getAddress().orElse(Address.ZERO));
+    return Hash.hash(getAddress());
   }
 
   /**
@@ -60,7 +59,7 @@ public interface Account {
    *
    * @return the account address
    */
-  Optional<Address> getAddress();
+  Address getAddress();
 
   /**
    * The account nonce, that is the number of transactions sent from that account.

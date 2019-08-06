@@ -12,6 +12,7 @@
  */
 package tech.pegasys.pantheon.ethereum.mainnet;
 
+import tech.pegasys.pantheon.ethereum.core.Account;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.vm.EVM;
 import tech.pegasys.pantheon.ethereum.vm.MessageFrame;
@@ -82,12 +83,10 @@ public abstract class AbstractMessageProcessor {
   private void clearAccumulatedStateBesidesGasAndOutput(final MessageFrame frame) {
     final Collection<Address> addressesToForceCommit =
         frame.getWorldState().getTouchedAccounts().stream()
-            .filter(
-                account ->
-                    forceDeleteAccountsWhenEmpty.contains(account.getAddress().get())
-                        && account.isEmpty())
-            .map(account -> account.getAddress().get())
+            .filter(a -> forceDeleteAccountsWhenEmpty.contains(a.getAddress()) && a.isEmpty())
+            .map(Account::getAddress)
             .collect(Collectors.toCollection(ArrayList::new));
+
     // Clear any pending changes.
     frame.getWorldState().revert();
 

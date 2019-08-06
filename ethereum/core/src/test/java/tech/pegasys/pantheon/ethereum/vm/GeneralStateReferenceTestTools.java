@@ -122,7 +122,7 @@ public class GeneralStateReferenceTestTools {
             TransactionValidationParams.processingBlock());
     final Account coinbase = worldStateUpdater.getOrCreate(spec.blockHeader().getCoinbase());
     if (coinbase != null && coinbase.isEmpty() && shouldClearEmptyAccounts(spec.eip())) {
-      worldStateUpdater.deleteAccount(coinbase.getAddress().get());
+      worldStateUpdater.deleteAccount(coinbase.getAddress());
     }
     worldStateUpdater.commit();
 

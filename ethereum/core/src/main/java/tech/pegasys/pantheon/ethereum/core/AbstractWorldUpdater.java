@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -51,7 +50,7 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
   protected abstract A getForMutation(Address address);
 
   protected UpdateTrackingAccount<A> track(final UpdateTrackingAccount<A> account) {
-    final Address address = account.getAddress().orElse(Address.ZERO);
+    final Address address = account.getAddress();
     updatedAccounts.put(address, account);
     deletedAccounts.remove(address);
     return account;
@@ -190,7 +189,7 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
     UpdateTrackingAccount(final A account) {
       checkNotNull(account);
 
-      this.address = account.getAddress().orElse(Address.ZERO);
+      this.address = account.getAddress();
       this.account = account;
 
       this.nonce = account.getNonce();
@@ -231,8 +230,8 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
     }
 
     @Override
-    public Optional<Address> getAddress() {
-      return Optional.ofNullable(address);
+    public Address getAddress() {
+      return address;
     }
 
     @Override

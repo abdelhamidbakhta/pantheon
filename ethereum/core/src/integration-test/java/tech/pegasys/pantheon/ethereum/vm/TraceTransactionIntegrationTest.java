@@ -112,7 +112,7 @@ public class TraceTransactionIntegrationTest {
             .gasPrice(Wei.ZERO)
             .nonce(1)
             .payload(BytesValue.fromHexString(CALL_SET_OTHER))
-            .to(createdContract.getAddress().get())
+            .to(createdContract.getAddress())
             .value(Wei.ZERO)
             .signAndBuild(keyPair);
     final WorldUpdater storeUpdater = worldState.updater();
