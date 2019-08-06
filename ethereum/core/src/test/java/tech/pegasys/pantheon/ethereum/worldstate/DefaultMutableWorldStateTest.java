@@ -181,14 +181,14 @@ public class DefaultMutableWorldStateTest {
     List<Account> accounts =
         worldState.streamAccounts(Bytes32.ZERO, 10).collect(Collectors.toList());
     assertThat(accounts.size()).isEqualTo(1L);
-    assertThat(accounts.get(0).getAddress().get()).isEqualTo(ADDRESS);
+    assertThat(accounts.get(0).getAddress()).isEqualTo(ADDRESS);
     assertThat(accounts.get(0).getBalance()).isEqualTo(Wei.of(100000));
 
     // Check again after persisting
     worldState.persist();
     accounts = worldState.streamAccounts(Bytes32.ZERO, 10).collect(Collectors.toList());
     assertThat(accounts.size()).isEqualTo(1L);
-    assertThat(accounts.get(0).getAddress().get()).isEqualTo(ADDRESS);
+    assertThat(accounts.get(0).getAddress()).isEqualTo(ADDRESS);
     assertThat(accounts.get(0).getBalance()).isEqualTo(Wei.of(100000));
   }
 
