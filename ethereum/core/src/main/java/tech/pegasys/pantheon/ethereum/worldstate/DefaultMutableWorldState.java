@@ -389,7 +389,7 @@ public class DefaultMutableWorldState implements MutableWorldState {
         final boolean freshState = origin == null || updated.getStorageWasCleared();
         Hash storageRoot = freshState ? Hash.EMPTY_TRIE_HASH : origin.getStorageRoot();
         if (freshState) {
-          wrapped.updatedStorageTries.remove(updated.getAddress().get());
+          wrapped.updatedStorageTries.remove(updated.getAddress());
         }
         final SortedMap<UInt256, UInt256> updatedStorage = updated.getUpdatedStorage();
         if (!updatedStorage.isEmpty() && updated.getAddress().isPresent()) {

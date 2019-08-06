@@ -409,13 +409,13 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
       // may kill some of "their" updates, and our updates may review some of the account "they"
       // deleted.
       deletedAccounts().forEach(wrapped.updatedAccounts::remove);
-      updatedAccounts().forEach(a -> wrapped.deletedAccounts.remove(a.getAddress().get()));
+      updatedAccounts().forEach(a -> wrapped.deletedAccounts.remove(a.getAddress()));
 
       // Then push our deletes and updates to the stacked ones.
       wrapped.deletedAccounts.addAll(deletedAccounts());
 
       for (final UpdateTrackingAccount<UpdateTrackingAccount<A>> update : updatedAccounts()) {
-        UpdateTrackingAccount<A> existing = wrapped.updatedAccounts.get(update.getAddress().get());
+        UpdateTrackingAccount<A> existing = wrapped.updatedAccounts.get(update.getAddress());
         if (existing == null) {
           // If we don't track this account, it's either a new one or getForMutation above had
           // created a tracker to satisfy the type system above and we can reuse that now.
