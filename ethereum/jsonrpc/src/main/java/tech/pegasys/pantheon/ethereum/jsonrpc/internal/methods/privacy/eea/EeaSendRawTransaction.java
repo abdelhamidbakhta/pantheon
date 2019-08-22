@@ -15,16 +15,13 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.eea;
 import static tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcEnclaveErrorConverter.convertEnclaveInvalidReason;
 import static tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcErrorConverter.convertTransactionInvalidReason;
 
-import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
-import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions;
 import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPool;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcMethod;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.JsonRpcRequest;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.exception.InvalidJsonRpcRequestException;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.JsonRpcMethod;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.parameters.JsonRpcParameter;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcError;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcErrorResponse;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcResponse;
@@ -35,9 +32,6 @@ import tech.pegasys.pantheon.ethereum.privacy.Restriction;
 import tech.pegasys.pantheon.ethereum.rlp.RLP;
 import tech.pegasys.pantheon.ethereum.rlp.RLPException;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
-import tech.pegasys.pantheon.util.bytes.BytesValues;
-
-import java.util.OptionalLong;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,22 +40,17 @@ public class EeaSendRawTransaction implements JsonRpcMethod {
 
   private static final Logger LOG = LogManager.getLogger();
 
-  private final BlockchainQueries blockchain;
   private final PrivateTransactionHandler privateTransactionHandler;
   private final TransactionPool transactionPool;
   private final JsonRpcParameter parameters;
-  private final PendingTransactions pendingTransactions;
 
   public EeaSendRawTransaction(
-      final BlockchainQueries blockchain,
       final PrivateTransactionHandler privateTransactionHandler,
       final TransactionPool transactionPool,
       final JsonRpcParameter parameters) {
-    this.blockchain = blockchain;
     this.privateTransactionHandler = privateTransactionHandler;
     this.transactionPool = transactionPool;
     this.parameters = parameters;
-    this.pendingTransactions = transactionPool.getPendingTransactions();
   }
 
   @Override
@@ -113,9 +102,7 @@ public class EeaSendRawTransaction implements JsonRpcMethod {
             () -> {
               final Transaction privacyMarkerTransaction =
                   privateTransactionHandler.createPrivacyMarkerTransaction(
-                      enclaveKey,
-                      privateTransaction,
-                      getNonce(privateTransactionHandler.getSignerAddress()));
+                      enclaveKey, privateTransaction);
               return transactionPool
                   .addLocalTransaction(privacyMarkerTransaction)
                   .either(
@@ -134,18 +121,10 @@ public class EeaSendRawTransaction implements JsonRpcMethod {
   private PrivateTransaction decodeRawTransaction(final String hash)
       throws InvalidJsonRpcRequestException {
     try {
-      return PrivateTransaction.readFrom(
-          RLP.input(BytesValue.fromHexString(hash)),
-          BytesValues.fromBase64(privateTransactionHandler.getEnclaveKey()));
+      return PrivateTransaction.readFrom(RLP.input(BytesValue.fromHexString(hash)));
     } catch (final IllegalArgumentException | RLPException e) {
       LOG.debug(e);
       throw new InvalidJsonRpcRequestException("Invalid raw private transaction hex", e);
     }
-  }
-
-  protected long getNonce(final Address address) {
-    final OptionalLong pendingNonce = pendingTransactions.getNextNonceForSender(address);
-    return pendingNonce.orElseGet(
-        () -> blockchain.getTransactionCount(address, blockchain.headBlockNumber()));
   }
 }

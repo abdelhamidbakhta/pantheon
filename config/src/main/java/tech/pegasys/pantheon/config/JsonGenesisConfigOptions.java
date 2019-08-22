@@ -40,6 +40,21 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   }
 
   @Override
+  public String getConsensusEngine() {
+    if (isEthHash()) {
+      return ETHASH_CONFIG_KEY;
+    } else if (isIbft2()) {
+      return IBFT2_CONFIG_KEY;
+    } else if (isIbftLegacy()) {
+      return IBFT_LEGACY_CONFIG_KEY;
+    } else if (isClique()) {
+      return CLIQUE_CONFIG_KEY;
+    } else {
+      return "unknown";
+    }
+  }
+
+  @Override
   public boolean isEthHash() {
     return configRoot.has(ETHASH_CONFIG_KEY);
   }
