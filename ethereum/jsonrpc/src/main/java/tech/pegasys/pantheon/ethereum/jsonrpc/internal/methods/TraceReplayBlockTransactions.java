@@ -183,35 +183,6 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
     traceCounter.incrementAndGet();
   }
 
-  private void generateActionNode(final ObjectNode traceNode, final TransactionTrace trace) {}
-
-  /*
-  private void generateResultNode(final ObjectNode traceNode, final TransactionTrace trace) {
-    final ObjectNode traceResultNode = traceNode.putObject("result");
-    traceResultNode.put("output", "0x");
-    traceResultNode.put("gasUsed", Gas.of(trace.getGas()).toHexString());
-  }
-
-  private void generateActionNode(final ObjectNode traceNode, final TransactionTrace trace) {
-    final ObjectNode actionResultNode = traceNode.putObject("action");
-    actionResultNode.put("callType", "call");
-    actionResultNode.put("from", trace.getTransaction().getSender().toString());
-    actionResultNode.put(
-        "gas", trace.getTransaction().getUpfrontGasCost().toStrictShortHexString());
-    actionResultNode.put(
-        "input",
-        trace
-            .getTransaction()
-            .getData()
-            .orElse(trace.getTransaction().getInit().orElse(BytesValue.EMPTY))
-            .toString());
-    trace
-        .getTransaction()
-        .getTo()
-        .ifPresent(address -> actionResultNode.put("to", address.toString()));
-    actionResultNode.put("value", trace.getTransaction().getValue().toStrictShortHexString());
-  }*/
-
   private Object emptyResult() {
     final ObjectMapper mapper = new ObjectMapper();
     return mapper.createArrayNode();
