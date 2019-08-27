@@ -12,16 +12,13 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import tech.pegasys.pantheon.ethereum.core.Block;
 import tech.pegasys.pantheon.ethereum.core.BlockHeader;
 import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.debug.TraceOptions;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcMethod;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.JsonRpcRequest;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.exception.InvalidJsonRpcParameters;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.parameters.BlockParameter;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.parameters.JsonRpcParameter;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.parameters.TraceTypeParameter;
@@ -35,7 +32,15 @@ import tech.pegasys.pantheon.util.bytes.BytesValue;
 import java.util.List;
 import java.util.Set;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
+  private static final Logger LOG = LogManager.getLogger();
 
   private final BlockTracer blockTracer;
 
@@ -61,6 +66,14 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
   protected Object resultByBlockNumber(final JsonRpcRequest request, final long blockNumber) {
     final TraceTypeParameter traceTypeParameter =
         getParameters().required(request.getParams(), 1, TraceTypeParameter.class);
+
+    // TODO : as mentioned in https://pegasys1.atlassian.net/browse/PIE-1805
+    // method returns an error if any option other than “trace” is supplied.
+    if (traceTypeParameter.getTraceTypes().contains(TraceTypeParameter.TraceType.STATE_DIFF)
+        || traceTypeParameter.getTraceTypes().contains(TraceTypeParameter.TraceType.VM_TRACE)) {
+      LOG.warn("Unsupported trace option");
+      throw new InvalidJsonRpcParameters("Invalid trace types supplied.");
+    }
 
     if (blockNumber == BlockHeader.GENESIS_BLOCK_NUMBER) {
       // Nothing to trace for the genesis block
