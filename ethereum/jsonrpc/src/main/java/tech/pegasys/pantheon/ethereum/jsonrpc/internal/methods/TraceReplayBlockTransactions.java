@@ -116,13 +116,22 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
   @SuppressWarnings("unused")
   private void formatWithTraceOption(
       final TransactionTrace trace, final ObjectMapper mapper, final ArrayNode tracesNode) {
+    int numberOfTraceNodes = 0;
+    trace.getTraceFrames().forEach(traceFrame -> {
+
+    });
     final ObjectNode traceNode = mapper.createObjectNode();
     generateActionNode(traceNode, trace);
-    generateResultNode(traceNode, trace);
+    /*generateResultNode(traceNode, trace);*/
     traceNode.put("type", "call");
     tracesNode.add(traceNode);
   }
 
+  private void generateActionNode(final ObjectNode traceNode, final TransactionTrace trace) {
+
+  }
+
+  /*
   private void generateResultNode(final ObjectNode traceNode, final TransactionTrace trace) {
     final ObjectNode traceResultNode = traceNode.putObject("result");
     traceResultNode.put("output", "0x");
@@ -147,7 +156,7 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
         .getTo()
         .ifPresent(address -> actionResultNode.put("to", address.toString()));
     actionResultNode.put("value", trace.getTransaction().getValue().toStrictShortHexString());
-  }
+  }*/
 
   private Object emptyResult() {
     final ObjectMapper mapper = new ObjectMapper();
