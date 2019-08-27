@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 public class TraceTypeParameter {
 
-  public enum TraceType {
+  enum TraceType {
     TRACE,
     VM_TRACE,
     STATE_DIFF;

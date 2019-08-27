@@ -12,11 +12,8 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import tech.pegasys.pantheon.ethereum.core.Block;
 import tech.pegasys.pantheon.ethereum.core.BlockHeader;
-import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.debug.TraceOptions;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcMethod;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.JsonRpcRequest;
@@ -30,12 +27,10 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries
 import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import tech.pegasys.pantheon.util.bytes.BytesValue;
 
 public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
 
@@ -87,59 +82,23 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
         .orElse(null);
   }
 
-  private JsonNode formatTraces(
+  private List<JsonNode> formatTraces(
       final List<TransactionTrace> traces, final TraceTypeParameter traceTypeParameter) {
-    final Set<TraceTypeParameter.TraceType> traceTypes = traceTypeParameter.getTraceTypes();
-    final ObjectMapper mapper = new ObjectMapper();
-    final ArrayNode resultArrayNode = mapper.createArrayNode();
-    final ObjectNode resultNode = mapper.createObjectNode();
-    if (traceTypes.contains(TraceTypeParameter.TraceType.TRACE)) {
-      final ArrayNode tracesNode = resultNode.putArray("trace");
-      traces.forEach((trace) -> formatWithTraceOption(trace, mapper, tracesNode));
-    }
-
-    resultArrayNode.add(resultNode);
-    return resultArrayNode;
+    return traces.stream()
+        .map((trace) -> formatTrace(trace, traceTypeParameter))
+        .collect(Collectors.toList());
   }
 
   @SuppressWarnings("unused")
-  private void formatWithTraceOption(
-      final TransactionTrace trace, final ObjectMapper mapper, final ArrayNode tracesNode) {
-    final ObjectNode traceNode = mapper.createObjectNode();
-    generateActionNode(traceNode, trace);
-    generateResultNode(traceNode, trace);
-    traceNode.put("type", "call");
-    tracesNode.add(traceNode);
-  }
-
-  private void generateResultNode(final ObjectNode traceNode, final TransactionTrace trace) {
-    final ObjectNode traceResultNode = traceNode.putObject("result");
-    traceResultNode.put("output", "0x");
-    traceResultNode.put("gasUsed", Gas.of(trace.getGas()).toHexString());
-  }
-
-  private void generateActionNode(final ObjectNode traceNode, final TransactionTrace trace) {
-    final ObjectNode actionResultNode = traceNode.putObject("action");
-    actionResultNode.put("callType", "call");
-    actionResultNode.put("from", trace.getTransaction().getSender().toString());
-    actionResultNode.put(
-        "gas", trace.getTransaction().getUpfrontGasCost().toStrictShortHexString());
-    actionResultNode.put(
-        "input",
-        trace
-            .getTransaction()
-            .getData()
-            .orElse(trace.getTransaction().getInit().orElse(BytesValue.EMPTY))
-            .toString());
-    trace
-        .getTransaction()
-        .getTo()
-        .ifPresent(address -> actionResultNode.put("to", address.toString()));
-    actionResultNode.put("value", trace.getTransaction().getValue().toStrictShortHexString());
+  private JsonNode formatTrace(
+      final TransactionTrace trace, final TraceTypeParameter traceTypeParameter) {
+    // TODO: generate result
+    ObjectMapper mapper = new ObjectMapper();
+    return mapper.createObjectNode();
   }
 
   private Object emptyResult() {
-    final ObjectMapper mapper = new ObjectMapper();
+    ObjectMapper mapper = new ObjectMapper();
     return mapper.createArrayNode();
   }
 }

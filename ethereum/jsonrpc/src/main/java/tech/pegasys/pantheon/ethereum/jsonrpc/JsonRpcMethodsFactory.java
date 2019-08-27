@@ -79,7 +79,6 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.NetPeerCount;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.NetServices;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.NetVersion;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.RpcModules;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.TraceReplayBlockTransactions;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.TxPoolPantheonStatistics;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.TxPoolPantheonTransactions;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.Web3ClientVersion;
@@ -332,19 +331,6 @@ public class JsonRpcMethodsFactory {
               clientVersion, networkId, genesisConfigOptions, p2pNetwork, blockchainQueries),
           new AdminPeers(p2pNetwork),
           new AdminChangeLogLevel(parameter));
-    }
-
-    if (rpcApis.contains(RpcApis.TRACE)) {
-      addMethods(
-          enabledMethods,
-          new TraceReplayBlockTransactions(
-              parameter,
-              new BlockTracer(
-                  new BlockReplay(
-                      protocolSchedule,
-                      blockchainQueries.getBlockchain(),
-                      blockchainQueries.getWorldStateArchive())),
-              blockchainQueries));
     }
 
     boolean eea = rpcApis.contains(RpcApis.EEA), priv = rpcApis.contains(RpcApis.PRIV);
