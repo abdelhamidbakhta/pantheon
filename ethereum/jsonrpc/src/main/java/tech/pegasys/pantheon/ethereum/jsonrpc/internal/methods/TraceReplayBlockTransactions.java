@@ -12,9 +12,10 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods;
 
+import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.Block;
 import tech.pegasys.pantheon.ethereum.core.BlockHeader;
-import tech.pegasys.pantheon.ethereum.core.Gas;
+import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.debug.TraceOptions;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcMethod;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.JsonRpcRequest;
@@ -26,11 +27,18 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTracer;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Action;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.FlatTrace;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Result;
 import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
+import tech.pegasys.pantheon.util.bytes.Bytes32;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,8 +75,8 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
     final TraceTypeParameter traceTypeParameter =
         getParameters().required(request.getParams(), 1, TraceTypeParameter.class);
 
-    // TODO : as mentioned in https://pegasys1.atlassian.net/browse/PIE-1805
-    // method returns an error if any option other than “trace” is supplied.
+    // TODO : method returns an error if any option other than “trace” is supplied.
+    // remove when others options are implemented
     if (traceTypeParameter.getTraceTypes().contains(TraceTypeParameter.TraceType.STATE_DIFF)
         || traceTypeParameter.getTraceTypes().contains(TraceTypeParameter.TraceType.VM_TRACE)) {
       LOG.warn("Unsupported trace option");
@@ -104,9 +112,10 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
     final ObjectMapper mapper = new ObjectMapper();
     final ArrayNode resultArrayNode = mapper.createArrayNode();
     final ObjectNode resultNode = mapper.createObjectNode();
+    final AtomicInteger traceCounter = new AtomicInteger(0);
     if (traceTypes.contains(TraceTypeParameter.TraceType.TRACE)) {
       final ArrayNode tracesNode = resultNode.putArray("trace");
-      traces.forEach((trace) -> formatWithTraceOption(trace, mapper, tracesNode));
+      traces.forEach((trace) -> formatWithTraceOption(trace, traceCounter, mapper, tracesNode));
     }
 
     resultArrayNode.add(resultNode);
@@ -115,21 +124,66 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
 
   @SuppressWarnings("unused")
   private void formatWithTraceOption(
-      final TransactionTrace trace, final ObjectMapper mapper, final ArrayNode tracesNode) {
-    int numberOfTraceNodes = 0;
-    trace.getTraceFrames().forEach(traceFrame -> {
-
-    });
-    final ObjectNode traceNode = mapper.createObjectNode();
-    generateActionNode(traceNode, trace);
-    /*generateResultNode(traceNode, trace);*/
-    traceNode.put("type", "call");
-    tracesNode.add(traceNode);
+      final TransactionTrace trace,
+      final AtomicInteger traceCounter,
+      final ObjectMapper mapper,
+      final ArrayNode tracesNode) {
+    final ObjectNode currentTraceNode = mapper.createObjectNode();
+    final FlatTrace.Builder firstFlatTraceBuilder = FlatTrace.builder();
+    String lastContractAddress = trace.getTransaction().getTo().orElse(Address.ZERO).getHexString();
+    final Action.Builder firstFlatTraceActionBuilder =
+        Action.builder()
+            .from(trace.getTransaction().getSender().getHexString())
+            .to(trace.getTransaction().getTo().orElse(Address.ZERO).toString())
+            .input(
+                trace
+                    .getTransaction()
+                    .getData()
+                    .orElse(trace.getTransaction().getInit().orElse(BytesValue.EMPTY))
+                    .getHexString())
+            .gas(trace.getTransaction().getUpfrontGasCost().toShortHexString())
+            .callType("call")
+            .value(trace.getTransaction().getValue().toShortHexString());
+    final Result.Builder firstFlatTraceResultBuilder = Result.builder();
+    final List<FlatTrace.Builder> subTracesBuilders = new ArrayList<>();
+    FlatTrace.Builder previousTraceBuilder = firstFlatTraceBuilder;
+    final List<Integer> currentTraceAddressVector = new ArrayList<>();
+    currentTraceAddressVector.add(traceCounter.get());
+    final AtomicInteger subTracesCounter = new AtomicInteger(0);
+    for (TraceFrame traceFrame : trace.getTraceFrames()) {
+      if ("CALL".equals(traceFrame.getOpcode())) {
+        final Bytes32[] stack = traceFrame.getStack().orElseThrow();
+        final Bytes32 contractCallAddress = stack[stack.length - 2];
+        LOG.info("Call detected to contract: {}", contractCallAddress.toString());
+        final Bytes32[] memory = traceFrame.getMemory().orElseThrow();
+        final Bytes32 contractCallInput = memory[0];
+        final FlatTrace.Builder subTraceBuilder =
+            FlatTrace.builder().traceAddress(currentTraceAddressVector.toArray(new Integer[0]));
+        final Action.Builder subTraceActionBuilder =
+            Action.builder()
+                .from(lastContractAddress)
+                .to(contractCallAddress.toString())
+                .input(contractCallInput.getHexString())
+                .callType("call")
+                .value(trace.getTransaction().getValue().toShortHexString());
+        subTracesBuilders.add(subTraceBuilder.action(subTraceActionBuilder.build()));
+        previousTraceBuilder.incSubTraces();
+        previousTraceBuilder = subTraceBuilder;
+        IntStream.of(subTracesCounter.incrementAndGet())
+            .forEach(value -> currentTraceAddressVector.add(value));
+      }
+      if ("RETURN".equals(traceFrame.getOpcode())) {}
+    }
+    tracesNode.addPOJO(
+        firstFlatTraceBuilder
+            .action(firstFlatTraceActionBuilder.build())
+            .result(firstFlatTraceResultBuilder.build())
+            .build());
+    subTracesBuilders.forEach(flatTraceBuilder -> tracesNode.addPOJO(flatTraceBuilder.build()));
+    traceCounter.incrementAndGet();
   }
 
-  private void generateActionNode(final ObjectNode traceNode, final TransactionTrace trace) {
-
-  }
+  private void generateActionNode(final ObjectNode traceNode, final TransactionTrace trace) {}
 
   /*
   private void generateResultNode(final ObjectNode traceNode, final TransactionTrace trace) {
