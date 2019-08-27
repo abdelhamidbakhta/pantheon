@@ -5,16 +5,14 @@
     "params": [
       "0x1",
       [
-        "trace",
-        "vmTrace",
-        "stateDiff"
+        "trace"
       ]
     ],
     "id": 415
   },
   "response": {
     "jsonrpc": "2.0",
-    "result": [],
+    "result": [{"trace":[]}],
     "id": 415
   },
   "statusCode": 200
