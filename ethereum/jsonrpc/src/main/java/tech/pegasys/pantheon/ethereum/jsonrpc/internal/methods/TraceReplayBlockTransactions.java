@@ -12,6 +12,8 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import tech.pegasys.pantheon.ethereum.core.Block;
@@ -28,14 +30,10 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTracer;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries;
 import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
+import tech.pegasys.pantheon.util.bytes.BytesValue;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import tech.pegasys.pantheon.util.bytes.BytesValue;
 
 public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
 
