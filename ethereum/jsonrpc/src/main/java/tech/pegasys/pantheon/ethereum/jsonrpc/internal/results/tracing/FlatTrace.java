@@ -82,12 +82,12 @@ public class FlatTrace {
       return this;
     }
 
-    public Builder subtraces(int subtraces) {
+    public Builder subtraces(final int subtraces) {
       this.subtraces = subtraces;
       return this;
     }
 
-    public Builder traceAddress(Integer[] traceAddress) {
+    public Builder traceAddress(final Integer[] traceAddress) {
       this.traceAddress = traceAddress;
       return this;
     }
