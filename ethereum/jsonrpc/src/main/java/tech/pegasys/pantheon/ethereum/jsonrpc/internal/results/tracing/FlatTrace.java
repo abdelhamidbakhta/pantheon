@@ -148,7 +148,7 @@ public class FlatTrace {
     }
 
     public FlatTrace build() {
-      FlatTrace flatTrace = new FlatTrace();
+      final FlatTrace flatTrace = new FlatTrace();
       flatTrace.setAction(action);
       flatTrace.setAction(actionBuilder.orElseGet(() -> Action.Builder.of(action)).build());
 

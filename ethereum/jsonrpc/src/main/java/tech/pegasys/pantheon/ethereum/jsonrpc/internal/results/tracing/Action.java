@@ -12,6 +12,11 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(NON_NULL)
 public class Action {
 
   private String callType;
@@ -19,6 +24,7 @@ public class Action {
   private String gas;
   private String input;
   private String to;
+  private String init;
   private String value;
 
   public String getCallType() {
@@ -69,16 +75,25 @@ public class Action {
     this.value = value;
   }
 
+  public String getInit() {
+    return init;
+  }
+
+  public void setInit(final String init) {
+    this.init = init;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
 
   public static final class Builder {
-    private String callType = "call";
+    private String callType;
     private String from;
     private String gas;
     private String input;
     private String to;
+    private String init;
     private String value;
 
     private Builder() {}
@@ -90,6 +105,7 @@ public class Action {
       builder.gas = action.gas;
       builder.input = action.input;
       builder.to = action.to;
+      builder.init = action.init;
       builder.value = action.value;
       return builder;
     }
@@ -119,6 +135,11 @@ public class Action {
       return this;
     }
 
+    public Builder init(final String init) {
+      this.init = init;
+      return this;
+    }
+
     public Builder value(final String value) {
       this.value = value;
       return this;
@@ -131,6 +152,7 @@ public class Action {
       action.setGas(gas);
       action.setInput(input);
       action.setTo(to);
+      action.setInit(init);
       action.setValue(value);
       return action;
     }

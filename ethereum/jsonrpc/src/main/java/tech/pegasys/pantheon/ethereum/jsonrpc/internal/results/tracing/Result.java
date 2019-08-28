@@ -12,9 +12,16 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(NON_NULL)
 public class Result {
   private String gasUsed;
   private String output;
+  private String code;
+  private String address;
 
   public String getGasUsed() {
     return gasUsed;
@@ -32,6 +39,22 @@ public class Result {
     this.output = output;
   }
 
+  public String getCode() {
+    return code;
+  }
+
+  public void setCode(final String code) {
+    this.code = code;
+  }
+
+  public String getAddress() {
+    return address;
+  }
+
+  public void setAddress(final String address) {
+    this.address = address;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -39,6 +62,8 @@ public class Result {
   public static final class Builder {
     private String gasUsed;
     private String output;
+    private String code;
+    private String address;
 
     private Builder() {}
 
@@ -52,10 +77,22 @@ public class Result {
       return this;
     }
 
+    public Builder code(final String code) {
+      this.code = code;
+      return this;
+    }
+
+    public Builder address(final String address) {
+      this.address = address;
+      return this;
+    }
+
     public static Builder of(final Result result) {
       final Builder builder = new Builder();
       builder.output = result.output;
       builder.gasUsed = result.gasUsed;
+      builder.code = result.code;
+      builder.address = result.address;
       return builder;
     }
 
@@ -63,6 +100,8 @@ public class Result {
       Result result = new Result();
       result.setGasUsed(gasUsed);
       result.setOutput(output);
+      result.setCode(code);
+      result.setAddress(address);
       return result;
     }
   }

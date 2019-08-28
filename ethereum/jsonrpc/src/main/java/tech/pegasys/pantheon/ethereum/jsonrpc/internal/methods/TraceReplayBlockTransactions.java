@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -144,27 +145,47 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
       final AtomicInteger traceCounter,
       final ObjectMapper mapper,
       final ArrayNode tracesNode) {
+
     final FlatTrace.Builder firstFlatTraceBuilder =
         FlatTrace.builder().resultBuilder(Result.builder());
     String lastContractAddress = trace.getTransaction().getTo().orElse(Address.ZERO).getHexString();
     final Action.Builder firstFlatTraceActionBuilder =
         Action.builder()
             .from(trace.getTransaction().getSender().getHexString())
-            .to(trace.getTransaction().getTo().orElse(Address.ZERO).toString())
-            .input(
-                trace
-                    .getTransaction()
-                    .getData()
-                    .orElse(trace.getTransaction().getInit().orElse(BytesValue.EMPTY))
-                    .getHexString())
             .gas(
                 trace
                     .getTransaction()
                     .getUpfrontGasCost()
                     .minus(Wei.of(trace.getResult().getGasRemaining()))
                     .toShortHexString())
-            .callType("call")
             .value(trace.getTransaction().getValue().toShortHexString());
+
+    final Optional<String> smartContractCode =
+        trace.getTransaction().getInit().isPresent()
+            ? Optional.of(trace.getResult().getOutput().toString())
+            : Optional.empty();
+    smartContractCode.ifPresent(
+        code -> firstFlatTraceBuilder.getResultBuilder().orElseThrow().code(code));
+    // set init field if transaction is a smart contract deployment
+    trace
+        .getTransaction()
+        .getInit()
+        .ifPresent(init -> firstFlatTraceActionBuilder.init(init.getHexString()));
+    // set to, input and callType fields if not a smart contract
+    trace
+        .getTransaction()
+        .getTo()
+        .ifPresent(
+            to ->
+                firstFlatTraceActionBuilder
+                    .to(to.toString())
+                    .callType("call")
+                    .input(
+                        trace
+                            .getTransaction()
+                            .getData()
+                            .orElse(trace.getTransaction().getInit().orElse(BytesValue.EMPTY))
+                            .getHexString()));
     firstFlatTraceBuilder.actionBuilder(firstFlatTraceActionBuilder);
     final Deque<FlatTrace.Context> tracesContexts = new ArrayDeque<>();
     tracesContexts.addLast(new FlatTrace.Context(firstFlatTraceBuilder));
