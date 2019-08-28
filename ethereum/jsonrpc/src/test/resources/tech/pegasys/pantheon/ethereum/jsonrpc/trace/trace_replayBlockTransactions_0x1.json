@@ -12,7 +12,7 @@
   },
   "response": {
     "jsonrpc": "2.0",
-    "result": [{"trace":[]}],
+    "result": [{"stateDiff":null,"vmTrace":null,"trace":[]}],
     "id": 415
   },
   "statusCode": 200
