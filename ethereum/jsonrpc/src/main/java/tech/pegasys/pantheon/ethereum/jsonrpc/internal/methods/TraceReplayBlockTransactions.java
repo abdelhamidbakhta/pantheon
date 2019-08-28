@@ -35,6 +35,7 @@ import tech.pegasys.pantheon.util.bytes.Bytes32;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -153,7 +154,7 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
     for (TraceFrame traceFrame : trace.getTraceFrames()) {
       if ("CALL".equals(traceFrame.getOpcode())) {
         final Bytes32[] stack = traceFrame.getStack().orElseThrow();
-        final Bytes32 contractCallAddress = stack[stack.length - 2];
+        final Address contractCallAddress = toAddress(stack[stack.length - 2]);
         final Bytes32[] memory = traceFrame.getMemory().orElseThrow();
         final Bytes32 contractCallInput = memory[0];
         final FlatTrace.Builder subTraceBuilder =
@@ -184,5 +185,11 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
   private Object emptyResult() {
     final ObjectMapper mapper = new ObjectMapper();
     return mapper.createArrayNode();
+  }
+
+  private static Address toAddress(final Bytes32 value) {
+    return Address.wrap(
+        BytesValue.of(
+            Arrays.copyOfRange(value.extractArray(), Bytes32.SIZE - Address.SIZE, Bytes32.SIZE)));
   }
 }
