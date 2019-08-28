@@ -70,12 +70,11 @@ public class FlatTrace {
     private Builder builder;
     private boolean returned;
 
-    public Context(Builder builder) {
-      this.builder = builder;
-      this.returned = false;
+    public Context(final Builder builder) {
+      this(builder, false);
     }
 
-    public Context(Builder builder, boolean returned) {
+    Context(final Builder builder, final boolean returned) {
       this.builder = builder;
       this.returned = returned;
     }
