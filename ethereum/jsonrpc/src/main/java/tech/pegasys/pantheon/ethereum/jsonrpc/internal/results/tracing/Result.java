@@ -52,6 +52,13 @@ public class Result {
       return this;
     }
 
+    public static Builder of(final Result result) {
+      final Builder builder = new Builder();
+      builder.output = result.output;
+      builder.gasUsed = result.gasUsed;
+      return builder;
+    }
+
     public Result build() {
       Result result = new Result();
       result.setGasUsed(gasUsed);

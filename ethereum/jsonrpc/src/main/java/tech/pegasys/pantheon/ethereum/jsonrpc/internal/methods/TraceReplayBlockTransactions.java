@@ -15,6 +15,8 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.Block;
 import tech.pegasys.pantheon.ethereum.core.BlockHeader;
+import tech.pegasys.pantheon.ethereum.core.Gas;
+import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.debug.TraceOptions;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcMethod;
@@ -34,8 +36,10 @@ import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
 import tech.pegasys.pantheon.util.bytes.Bytes32;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -114,6 +118,17 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
     final ArrayNode resultArrayNode = mapper.createArrayNode();
     final ObjectNode resultNode = mapper.createObjectNode();
     final AtomicInteger traceCounter = new AtomicInteger(0);
+    traces.stream()
+        .findFirst()
+        .ifPresent(
+            transactionTrace -> {
+              resultNode.put(
+                  "transactionHash", transactionTrace.getTransaction().hash().getHexString());
+              resultNode.put("output", transactionTrace.getResult().getOutput().toString());
+            });
+    resultNode.put("stateDiff", (String) null);
+    resultNode.put("vmTrace", (String) null);
+
     if (traceTypes.contains(TraceTypeParameter.TraceType.TRACE)) {
       final ArrayNode tracesNode = resultNode.putArray("trace");
       traces.forEach((trace) -> formatWithTraceOption(trace, traceCounter, mapper, tracesNode));
@@ -129,8 +144,8 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
       final AtomicInteger traceCounter,
       final ObjectMapper mapper,
       final ArrayNode tracesNode) {
-    final ObjectNode currentTraceNode = mapper.createObjectNode();
-    final FlatTrace.Builder firstFlatTraceBuilder = FlatTrace.builder();
+    final FlatTrace.Builder firstFlatTraceBuilder =
+        FlatTrace.builder().resultBuilder(Result.builder());
     String lastContractAddress = trace.getTransaction().getTo().orElse(Address.ZERO).getHexString();
     final Action.Builder firstFlatTraceActionBuilder =
         Action.builder()
@@ -142,43 +157,78 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
                     .getData()
                     .orElse(trace.getTransaction().getInit().orElse(BytesValue.EMPTY))
                     .getHexString())
-            .gas(trace.getTransaction().getUpfrontGasCost().toShortHexString())
+            .gas(
+                trace
+                    .getTransaction()
+                    .getUpfrontGasCost()
+                    .minus(Wei.of(trace.getResult().getGasRemaining()))
+                    .toShortHexString())
             .callType("call")
             .value(trace.getTransaction().getValue().toShortHexString());
-    final Result.Builder firstFlatTraceResultBuilder = Result.builder();
-    final List<FlatTrace.Builder> subTracesBuilders = new ArrayList<>();
+    firstFlatTraceBuilder.actionBuilder(firstFlatTraceActionBuilder);
+    final Deque<FlatTrace.Context> tracesContexts = new ArrayDeque<>();
+    tracesContexts.addLast(new FlatTrace.Context(firstFlatTraceBuilder));
     FlatTrace.Builder previousTraceBuilder = firstFlatTraceBuilder;
     final List<Integer> currentTraceAddressVector = new ArrayList<>();
     currentTraceAddressVector.add(traceCounter.get());
     final AtomicInteger subTracesCounter = new AtomicInteger(0);
+    long cumulativeGasCost = 0;
     for (TraceFrame traceFrame : trace.getTraceFrames()) {
+      cumulativeGasCost += traceFrame.getGasCost().orElse(Gas.ZERO).toLong();
       if ("CALL".equals(traceFrame.getOpcode())) {
         final Bytes32[] stack = traceFrame.getStack().orElseThrow();
         final Address contractCallAddress = toAddress(stack[stack.length - 2]);
         final Bytes32[] memory = traceFrame.getMemory().orElseThrow();
         final Bytes32 contractCallInput = memory[0];
         final FlatTrace.Builder subTraceBuilder =
-            FlatTrace.builder().traceAddress(currentTraceAddressVector.toArray(new Integer[0]));
+            FlatTrace.builder()
+                .traceAddress(currentTraceAddressVector.toArray(new Integer[0]))
+                .resultBuilder(Result.builder());
         final Action.Builder subTraceActionBuilder =
             Action.builder()
                 .from(lastContractAddress)
                 .to(contractCallAddress.toString())
                 .input(contractCallInput.getHexString())
+                .gas(traceFrame.getGasRemaining().toHexString())
                 .callType("call")
                 .value(trace.getTransaction().getValue().toShortHexString());
-        subTracesBuilders.add(subTraceBuilder.action(subTraceActionBuilder.build()));
+        tracesContexts.addLast(
+            new FlatTrace.Context(subTraceBuilder.action(subTraceActionBuilder.build())));
         previousTraceBuilder.incSubTraces();
+        previousTraceBuilder
+            .getResultBuilder()
+            .orElse(Result.builder())
+            .gasUsed(Gas.of(cumulativeGasCost).toHexString());
         previousTraceBuilder = subTraceBuilder;
+        // compute trace addresses
         IntStream.of(subTracesCounter.incrementAndGet()).forEach(currentTraceAddressVector::add);
+        cumulativeGasCost = 0;
       }
-      if ("RETURN".equals(traceFrame.getOpcode())) {}
+      if ("RETURN".equals(traceFrame.getOpcode())) {
+        final Deque<FlatTrace.Context> polledContexts = new ArrayDeque<>();
+        FlatTrace.Context ctx;
+        boolean continueToPollContexts = true;
+        // find last non returned trace
+        while (continueToPollContexts && (ctx = tracesContexts.pollLast()) != null) {
+          polledContexts.addFirst(ctx);
+          if (!ctx.isReturned()) {
+            final Bytes32[] memory = traceFrame.getMemory().orElseThrow();
+            ctx.getBuilder()
+                .getResultBuilder()
+                .orElse(Result.builder())
+                .gasUsed(Gas.of(cumulativeGasCost).toHexString())
+                .output(memory[0].toString());
+            previousTraceBuilder = ctx.getBuilder();
+            ctx.markAsReturned();
+            continueToPollContexts = false;
+          }
+        }
+        // reinsert polled contexts add the end of the queue
+        polledContexts.forEach(tracesContexts::addLast);
+        cumulativeGasCost = 0;
+      }
     }
-    tracesNode.addPOJO(
-        firstFlatTraceBuilder
-            .action(firstFlatTraceActionBuilder.build())
-            .result(firstFlatTraceResultBuilder.build())
-            .build());
-    subTracesBuilders.forEach(flatTraceBuilder -> tracesNode.addPOJO(flatTraceBuilder.build()));
+    tracesContexts.forEach(context -> tracesNode.addPOJO(context.getBuilder().build()));
     traceCounter.incrementAndGet();
   }
 

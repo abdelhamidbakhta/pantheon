@@ -83,6 +83,17 @@ public class Action {
 
     private Builder() {}
 
+    public static Builder of(final Action action) {
+      final Builder builder = new Builder();
+      builder.callType = action.callType;
+      builder.from = action.from;
+      builder.gas = action.gas;
+      builder.input = action.input;
+      builder.to = action.to;
+      builder.value = action.value;
+      return builder;
+    }
+
     public Builder callType(final String callType) {
       this.callType = callType;
       return this;

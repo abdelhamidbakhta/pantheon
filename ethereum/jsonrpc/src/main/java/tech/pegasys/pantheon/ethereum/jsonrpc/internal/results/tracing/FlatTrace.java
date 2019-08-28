@@ -12,6 +12,8 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
+import java.util.Optional;
+
 public class FlatTrace {
   private Action action;
   private Result result;
@@ -63,9 +65,39 @@ public class FlatTrace {
     return new Builder();
   }
 
+  public static class Context {
+
+    private Builder builder;
+    private boolean returned;
+
+    public Context(Builder builder) {
+      this.builder = builder;
+      this.returned = false;
+    }
+
+    public Context(Builder builder, boolean returned) {
+      this.builder = builder;
+      this.returned = returned;
+    }
+
+    public Builder getBuilder() {
+      return builder;
+    }
+
+    public boolean isReturned() {
+      return returned;
+    }
+
+    public void markAsReturned() {
+      this.returned = true;
+    }
+  }
+
   public static final class Builder {
     private Action action;
+    private Optional<Action.Builder> actionBuilder = Optional.empty();
     private Result result;
+    private Optional<Result.Builder> resultBuilder = Optional.empty();
     private int subtraces;
     private Integer[] traceAddress = new Integer[0];
     private String type = "call";
@@ -79,6 +111,16 @@ public class FlatTrace {
 
     public Builder result(final Result result) {
       this.result = result;
+      return this;
+    }
+
+    public Builder resultBuilder(final Result.Builder resultBuilder) {
+      this.resultBuilder = Optional.ofNullable(resultBuilder);
+      return this;
+    }
+
+    public Builder actionBuilder(final Action.Builder actionBuilder) {
+      this.actionBuilder = Optional.ofNullable(actionBuilder);
       return this;
     }
 
@@ -109,11 +151,21 @@ public class FlatTrace {
     public FlatTrace build() {
       FlatTrace flatTrace = new FlatTrace();
       flatTrace.setAction(action);
-      flatTrace.setResult(result);
+      flatTrace.setAction(actionBuilder.orElseGet(() -> Action.Builder.of(action)).build());
+
+      flatTrace.setResult(resultBuilder.orElseGet(() -> Result.Builder.of(result)).build());
       flatTrace.setSubtraces(subtraces);
       flatTrace.setTraceAddress(traceAddress);
       flatTrace.setType(type);
       return flatTrace;
+    }
+
+    public Action getAction() {
+      return action;
+    }
+
+    public Optional<Result.Builder> getResultBuilder() {
+      return resultBuilder;
     }
   }
 }
