@@ -154,7 +154,6 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
       if ("CALL".equals(traceFrame.getOpcode())) {
         final Bytes32[] stack = traceFrame.getStack().orElseThrow();
         final Bytes32 contractCallAddress = stack[stack.length - 2];
-        LOG.info("Call detected to contract: {}", contractCallAddress.toString());
         final Bytes32[] memory = traceFrame.getMemory().orElseThrow();
         final Bytes32 contractCallInput = memory[0];
         final FlatTrace.Builder subTraceBuilder =
@@ -169,8 +168,7 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
         subTracesBuilders.add(subTraceBuilder.action(subTraceActionBuilder.build()));
         previousTraceBuilder.incSubTraces();
         previousTraceBuilder = subTraceBuilder;
-        IntStream.of(subTracesCounter.incrementAndGet())
-            .forEach(value -> currentTraceAddressVector.add(value));
+        IntStream.of(subTracesCounter.incrementAndGet()).forEach(currentTraceAddressVector::add);
       }
       if ("RETURN".equals(traceFrame.getOpcode())) {}
     }
