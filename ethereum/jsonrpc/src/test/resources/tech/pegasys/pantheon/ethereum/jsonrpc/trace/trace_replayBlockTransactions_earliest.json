@@ -5,7 +5,7 @@
     "method": "trace_replayBlockTransactions",
     "params": [
       "earliest",
-      ["trace","vmTrace","stateDiff"]
+      ["trace"]
     ]
   },
   "response": {

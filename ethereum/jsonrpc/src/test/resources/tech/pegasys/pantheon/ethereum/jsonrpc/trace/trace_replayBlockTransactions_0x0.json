@@ -5,9 +5,7 @@
     "params": [
       "0x0",
       [
-        "trace",
-        "vmTrace",
-        "stateDiff"
+        "trace"
       ]
     ],
     "id": 415
