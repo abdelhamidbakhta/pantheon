@@ -12,6 +12,8 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
+
 import java.util.Optional;
 
 public class FlatTrace implements Trace {
@@ -20,6 +22,12 @@ public class FlatTrace implements Trace {
   private int subtraces;
   private Integer[] traceAddress = new Integer[0];
   private String type;
+
+  public static Builder freshBuilder(final TransactionTrace transactionTrace) {
+    return FlatTrace.builder()
+        .resultBuilder(Result.builder())
+        .actionBuilder(Action.Builder.from(transactionTrace));
+  }
 
   public Action getAction() {
     return action;
@@ -94,6 +102,7 @@ public class FlatTrace implements Trace {
 
   public static final class Builder {
     private Action action;
+
     private Optional<Action.Builder> actionBuilder = Optional.empty();
     private Result result;
     private Optional<Result.Builder> resultBuilder = Optional.empty();
@@ -165,6 +174,10 @@ public class FlatTrace implements Trace {
 
     public Optional<Result.Builder> getResultBuilder() {
       return resultBuilder;
+    }
+
+    public Optional<Action.Builder> getActionBuilder() {
+      return actionBuilder;
     }
   }
 }

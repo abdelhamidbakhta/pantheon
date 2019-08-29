@@ -14,6 +14,12 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
+import tech.pegasys.pantheon.ethereum.core.Address;
+import tech.pegasys.pantheon.ethereum.core.Transaction;
+import tech.pegasys.pantheon.ethereum.core.Wei;
+import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 @JsonInclude(NON_NULL)
@@ -87,6 +93,20 @@ public class Action {
     return new Builder();
   }
 
+  public static Builder createCallAction(
+      final Transaction transaction,
+      final String lastContractAddress,
+      final Address contractCallAddress,
+      TraceFrame traceFrame) {
+    return builder()
+        .from(lastContractAddress)
+        .to(contractCallAddress.toString())
+        .input(traceFrame.getMemory().orElseThrow()[0].getHexString())
+        .gas(traceFrame.getGasRemaining().toHexString())
+        .callType("call")
+        .value(transaction.getValue().toShortHexString());
+  }
+
   public static final class Builder {
     private String callType;
     private String from;
@@ -108,6 +128,18 @@ public class Action {
       builder.init = action.init;
       builder.value = action.value;
       return builder;
+    }
+
+    public static Builder from(final TransactionTrace trace) {
+      return new Builder()
+          .from(trace.getTransaction().getSender().getHexString())
+          .gas(
+              trace
+                  .getTransaction()
+                  .getUpfrontGasCost()
+                  .minus(Wei.of(trace.getResult().getGasRemaining()))
+                  .toShortHexString())
+          .value(trace.getTransaction().getValue().toShortHexString());
     }
 
     public Builder callType(final String callType) {

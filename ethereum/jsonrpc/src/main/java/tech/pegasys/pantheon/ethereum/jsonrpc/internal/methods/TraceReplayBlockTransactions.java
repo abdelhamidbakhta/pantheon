@@ -26,6 +26,7 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTracer;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.FlatTraceGenerator;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.TraceFormatter;
 import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
 
@@ -119,7 +120,7 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
 
     if (traceTypes.contains(TraceTypeParameter.TraceType.TRACE)) {
       formatTraces(
-          resultNode.putArray("trace"),
+          resultNode.putArray("trace")::addPOJO,
           traces,
           FlatTraceGenerator::generateFromTransactionTrace,
           traceCounter);
@@ -130,13 +131,18 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
   }
 
   private void formatTraces(
-      final ArrayNode node,
+      final TraceResultWriter writer,
       final List<TransactionTrace> traces,
       final TraceFormatter formatter,
       final AtomicInteger traceCounter) {
     traces.forEach(
         (transactionTrace) ->
-            formatter.format(transactionTrace, traceCounter).forEachOrdered(node::addPOJO));
+            formatter.format(transactionTrace, traceCounter).forEachOrdered(writer::writeResult));
+  }
+
+  @FunctionalInterface
+  public interface TraceResultWriter {
+    void writeResult(Trace trace);
   }
 
   private Object emptyResult() {
