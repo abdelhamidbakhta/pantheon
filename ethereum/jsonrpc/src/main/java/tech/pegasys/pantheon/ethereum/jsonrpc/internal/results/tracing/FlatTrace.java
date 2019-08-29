@@ -14,7 +14,7 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
 import java.util.Optional;
 
-public class FlatTrace {
+public class FlatTrace implements Trace {
   private Action action;
   private Result result;
   private int subtraces;
