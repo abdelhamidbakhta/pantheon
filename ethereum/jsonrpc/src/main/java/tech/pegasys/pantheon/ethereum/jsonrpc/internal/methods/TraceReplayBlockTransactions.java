@@ -164,8 +164,15 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
         trace.getTransaction().getInit().isPresent()
             ? Optional.of(trace.getResult().getOutput().toString())
             : Optional.empty();
-    smartContractCode.ifPresent(
-        code -> firstFlatTraceBuilder.getResultBuilder().orElseThrow().code(code));
+    final Optional<String> smartContractAddress =
+        smartContractCode.isPresent()
+            ? Optional.of(
+                Address.contractAddress(
+                        trace.getTransaction().getSender(), trace.getTransaction().getNonce())
+                    .getHexString())
+            : Optional.empty();
+    // set code field in result node
+    smartContractCode.ifPresent(firstFlatTraceBuilder.getResultBuilder().orElseThrow()::code);
     // set init field if transaction is a smart contract deployment
     trace
         .getTransaction()
@@ -187,9 +194,12 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
                             .orElse(trace.getTransaction().getInit().orElse(BytesValue.EMPTY))
                             .getHexString()));
     firstFlatTraceBuilder.actionBuilder(firstFlatTraceActionBuilder);
+    // declare a queue of trace contexts
     final Deque<FlatTrace.Context> tracesContexts = new ArrayDeque<>();
+    // add the first trace context to the queue of trace contexts
     tracesContexts.addLast(new FlatTrace.Context(firstFlatTraceBuilder));
-    FlatTrace.Builder previousTraceBuilder = firstFlatTraceBuilder;
+    // declare the first trace context as the previous trace context
+    // FlatTrace.Context previousTraceContext = tracesContexts.peekLast();
     final List<Integer> currentTraceAddressVector = new ArrayList<>();
     currentTraceAddressVector.add(traceCounter.get());
     final AtomicInteger subTracesCounter = new AtomicInteger(0);
@@ -213,14 +223,22 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
                 .gas(traceFrame.getGasRemaining().toHexString())
                 .callType("call")
                 .value(trace.getTransaction().getValue().toShortHexString());
+        final long gasCost = cumulativeGasCost;
+        // retrieve the previous trace context
+        Optional.ofNullable(tracesContexts.peekLast())
+            .ifPresent(
+                previousContext -> {
+                  // increment sub traces counter of previous trace
+                  previousContext.getBuilder().incSubTraces();
+                  // set gas cost of previous trace
+                  previousContext
+                      .getBuilder()
+                      .getResultBuilder()
+                      .orElse(Result.builder())
+                      .gasUsed(Gas.of(gasCost).toHexString());
+                });
         tracesContexts.addLast(
             new FlatTrace.Context(subTraceBuilder.action(subTraceActionBuilder.build())));
-        previousTraceBuilder.incSubTraces();
-        previousTraceBuilder
-            .getResultBuilder()
-            .orElse(Result.builder())
-            .gasUsed(Gas.of(cumulativeGasCost).toHexString());
-        previousTraceBuilder = subTraceBuilder;
         // compute trace addresses
         IntStream.of(subTracesCounter.incrementAndGet()).forEach(currentTraceAddressVector::add);
         cumulativeGasCost = 0;
@@ -233,13 +251,17 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
         while (continueToPollContexts && (ctx = tracesContexts.pollLast()) != null) {
           polledContexts.addFirst(ctx);
           if (!ctx.isReturned()) {
+            final FlatTrace.Builder flatTraceBuilder = ctx.getBuilder();
+            final Result.Builder resultBuilder =
+                flatTraceBuilder.getResultBuilder().orElse(Result.builder());
             final Bytes32[] memory = traceFrame.getMemory().orElseThrow();
-            ctx.getBuilder()
-                .getResultBuilder()
-                .orElse(Result.builder())
-                .gasUsed(Gas.of(cumulativeGasCost).toHexString())
-                .output(memory[0].toString());
-            previousTraceBuilder = ctx.getBuilder();
+            resultBuilder.gasUsed(Gas.of(cumulativeGasCost).toHexString());
+            smartContractAddress.ifPresentOrElse(
+                address -> {
+                  resultBuilder.address(address);
+                  flatTraceBuilder.type("create");
+                },
+                () -> resultBuilder.output(memory[0].toString()));
             ctx.markAsReturned();
             continueToPollContexts = false;
           }
