@@ -60,8 +60,8 @@ public class Result {
   }
 
   public static final class Builder {
-    private String gasUsed;
-    private String output;
+    private String gasUsed = "0x0";
+    private String output = "0x";
     private String code;
     private String address;
 
@@ -79,6 +79,7 @@ public class Result {
 
     public Builder code(final String code) {
       this.code = code;
+      this.output = null;
       return this;
     }
 

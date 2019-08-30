@@ -134,7 +134,8 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
         assertThat(responseBody.has("result")).isTrue();
         final String expectedResult = expectedResponse.get("result").toString();
         final String actualResult = responseBody.get("result").toString();
-        assertThat(actualResult).isEqualToIgnoringWhitespace(expectedResult);
+        final ObjectMapper mapper = new ObjectMapper();
+        assertThat(mapper.readTree(actualResult)).isEqualTo(mapper.readTree(expectedResult));
       }
 
       // Check error

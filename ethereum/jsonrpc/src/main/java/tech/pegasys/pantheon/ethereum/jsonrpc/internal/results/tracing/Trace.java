@@ -12,4 +12,9 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
-public interface Trace {}
+public interface Trace {
+  @FunctionalInterface
+  interface ResultWriter {
+    void write(Trace trace);
+  }
+}

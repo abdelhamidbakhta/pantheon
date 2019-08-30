@@ -133,12 +133,7 @@ public class Action {
     public static Builder from(final TransactionTrace trace) {
       return new Builder()
           .from(trace.getTransaction().getSender().getHexString())
-          .gas(
-              trace
-                  .getTransaction()
-                  .getUpfrontGasCost()
-                  .minus(Wei.of(trace.getResult().getGasRemaining()))
-                  .toShortHexString())
+          .gas(Wei.of(trace.getResult().getGasRemaining()).toStrictShortHexString())
           .value(trace.getTransaction().getValue().toShortHexString());
     }
 

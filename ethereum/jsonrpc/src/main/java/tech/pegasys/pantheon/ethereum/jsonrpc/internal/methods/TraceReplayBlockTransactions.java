@@ -131,18 +131,13 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
   }
 
   private void formatTraces(
-      final TraceResultWriter writer,
+      final Trace.ResultWriter writer,
       final List<TransactionTrace> traces,
       final TraceFormatter formatter,
       final AtomicInteger traceCounter) {
     traces.forEach(
         (transactionTrace) ->
-            formatter.format(transactionTrace, traceCounter).forEachOrdered(writer::writeResult));
-  }
-
-  @FunctionalInterface
-  public interface TraceResultWriter {
-    void writeResult(Trace trace);
+            formatter.format(transactionTrace, traceCounter).forEachOrdered(writer::write));
   }
 
   private Object emptyResult() {
