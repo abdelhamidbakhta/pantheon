@@ -97,7 +97,7 @@ public class Action {
       final Transaction transaction,
       final String lastContractAddress,
       final Address contractCallAddress,
-      TraceFrame traceFrame) {
+      final TraceFrame traceFrame) {
     return builder()
         .from(lastContractAddress)
         .to(contractCallAddress.toString())
