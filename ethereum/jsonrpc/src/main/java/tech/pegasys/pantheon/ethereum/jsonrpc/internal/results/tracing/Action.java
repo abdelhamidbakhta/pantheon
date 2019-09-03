@@ -15,6 +15,7 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import tech.pegasys.pantheon.ethereum.core.Address;
+import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
@@ -135,6 +136,11 @@ public class Action {
           .from(trace.getTransaction().getSender().getHexString())
           .gas(Wei.of(trace.getResult().getGasRemaining()).toStrictShortHexString())
           .value(trace.getTransaction().getValue().toShortHexString());
+    }
+
+    public Builder incrementGas(long value) {
+      this.gas = Gas.fromHexString(gas).plus(Gas.of(value)).toHexString();
+      return this;
     }
 
     public Builder callType(final String callType) {

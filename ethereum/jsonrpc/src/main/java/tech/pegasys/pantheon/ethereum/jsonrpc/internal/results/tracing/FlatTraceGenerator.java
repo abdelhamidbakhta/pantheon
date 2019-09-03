@@ -42,6 +42,7 @@ public class FlatTraceGenerator {
    */
   public static Stream<Trace> generateFromTransactionTrace(
       final TransactionTrace transactionTrace, final AtomicInteger traceCounter) {
+    transactionTrace.getTraceFrames().forEach(System.out::println);
     final FlatTrace.Builder firstFlatTraceBuilder = FlatTrace.freshBuilder(transactionTrace);
     final String lastContractAddress =
         transactionTrace.getTransaction().getTo().orElse(Address.ZERO).getHexString();
@@ -110,7 +111,7 @@ public class FlatTraceGenerator {
             tracesContexts,
             subTracesCounter);
       }
-      if ("RETURN".equals(traceFrame.getOpcode())) {
+      if ("RETURN".equals(traceFrame.getOpcode()) || "STOP".equals(traceFrame.getOpcode())) {
         handleReturn(traceFrame, smartContractAddress, cumulativeGasCost, tracesContexts);
       }
     }
@@ -181,13 +182,22 @@ public class FlatTraceGenerator {
               flatTraceBuilder.type("create");
             },
             // set output otherwise
-            () -> resultBuilder.output(traceFrame.getMemory().orElseThrow()[0].toString()));
+            () ->
+                resultBuilder.output(
+                    traceFrame.getMemory().isPresent() && traceFrame.getMemory().get().length > 0
+                        ? traceFrame.getMemory().get()[0].toString()
+                        : "0x"));
         ctx.markAsReturned();
         continueToPollContexts = false;
       }
     }
     // reinsert polled contexts add the end of the queue
     polledContexts.forEach(tracesContexts::addLast);
+    tracesContexts
+        .getFirst()
+        .getBuilder()
+        .getActionBuilder()
+        .ifPresent(actionBuilder -> actionBuilder.incrementGas(cumulativeGasCost.longValue()));
     cumulativeGasCost.set(0);
   }
 

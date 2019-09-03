@@ -90,6 +90,9 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
   }
 
   private Object traceBlock(final Block block, final TraceTypeParameter traceTypeParameter) {
+    if (block == null || block.getBody().getTransactions().isEmpty()) {
+      return emptyResult();
+    }
     // TODO: generate options based on traceTypeParameter
     final TraceOptions traceOptions = TraceOptions.DEFAULT;
 
