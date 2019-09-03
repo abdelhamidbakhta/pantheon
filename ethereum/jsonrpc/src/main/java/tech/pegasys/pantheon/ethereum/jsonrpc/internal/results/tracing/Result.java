@@ -90,10 +90,12 @@ public class Result {
 
     public static Builder of(final Result result) {
       final Builder builder = new Builder();
-      builder.output = result.output;
-      builder.gasUsed = result.gasUsed;
-      builder.code = result.code;
-      builder.address = result.address;
+      if (result != null) {
+        builder.output = result.output;
+        builder.gasUsed = result.gasUsed;
+        builder.code = result.code;
+        builder.address = result.address;
+      }
       return builder;
     }
 

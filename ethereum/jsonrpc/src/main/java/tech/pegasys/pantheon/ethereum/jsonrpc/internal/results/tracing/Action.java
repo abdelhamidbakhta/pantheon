@@ -12,8 +12,7 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
@@ -21,7 +20,7 @@ import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 @JsonInclude(NON_NULL)
 public class Action {
@@ -33,6 +32,35 @@ public class Action {
   private String to;
   private String init;
   private String value;
+  private String address;
+  private String balance;
+  private String refundAddress;
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static Builder createCallAction(
+      final Transaction transaction,
+      final String lastContractAddress,
+      final Address contractCallAddress,
+      final TraceFrame traceFrame) {
+    return builder()
+        .from(lastContractAddress)
+        .to(contractCallAddress.toString())
+        .input(traceFrame.getMemory().orElseThrow()[0].getHexString())
+        .gas(traceFrame.getGasRemaining().toHexString())
+        .callType("call")
+        .value(transaction.getValue().toShortHexString());
+  }
+
+  public static Builder createSelfDestructAction(
+      final Transaction transaction,
+      final String lastContractAddress,
+      final Address contractCallAddress,
+      final TraceFrame traceFrame) {
+    return builder().address(lastContractAddress).refundAddress(contractCallAddress.toString());
+  }
 
   public String getCallType() {
     return callType;
@@ -90,22 +118,28 @@ public class Action {
     this.init = init;
   }
 
-  public static Builder builder() {
-    return new Builder();
+  public String getAddress() {
+    return address;
   }
 
-  public static Builder createCallAction(
-      final Transaction transaction,
-      final String lastContractAddress,
-      final Address contractCallAddress,
-      final TraceFrame traceFrame) {
-    return builder()
-        .from(lastContractAddress)
-        .to(contractCallAddress.toString())
-        .input(traceFrame.getMemory().orElseThrow()[0].getHexString())
-        .gas(traceFrame.getGasRemaining().toHexString())
-        .callType("call")
-        .value(transaction.getValue().toShortHexString());
+  public void setAddress(final String address) {
+    this.address = address;
+  }
+
+  public String getBalance() {
+    return balance;
+  }
+
+  public void setBalance(final String balance) {
+    this.balance = balance;
+  }
+
+  public String getRefundAddress() {
+    return refundAddress;
+  }
+
+  public void setRefundAddress(final String refundAddress) {
+    this.refundAddress = refundAddress;
   }
 
   public static final class Builder {
@@ -116,6 +150,9 @@ public class Action {
     private String to;
     private String init;
     private String value;
+    private String address;
+    private String balance;
+    private String refundAddress;
 
     private Builder() {}
 
@@ -128,6 +165,9 @@ public class Action {
       builder.to = action.to;
       builder.init = action.init;
       builder.value = action.value;
+      builder.address = action.address;
+      builder.refundAddress = action.refundAddress;
+      builder.balance = action.balance;
       return builder;
     }
 
@@ -178,6 +218,21 @@ public class Action {
       return this;
     }
 
+    public Builder address(final String address) {
+      this.address = address;
+      return this;
+    }
+
+    public Builder balance(final String balance) {
+      this.balance = balance;
+      return this;
+    }
+
+    public Builder refundAddress(final String refundAddress) {
+      this.refundAddress = refundAddress;
+      return this;
+    }
+
     public Action build() {
       final Action action = new Action();
       action.setCallType(callType);
@@ -187,6 +242,9 @@ public class Action {
       action.setTo(to);
       action.setInit(init);
       action.setValue(value);
+      action.setAddress(address);
+      action.setRefundAddress(refundAddress);
+      action.setBalance(balance);
       return action;
     }
   }
