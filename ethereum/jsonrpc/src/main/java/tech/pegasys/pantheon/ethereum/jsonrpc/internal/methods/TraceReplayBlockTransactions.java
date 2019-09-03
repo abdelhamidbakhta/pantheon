@@ -25,12 +25,15 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTracer;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.FlatTraceGenerator;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.TraceFormatter;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.flat.FlatTraceGenerator;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.vm.VmTraceGenerator;
 import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -71,8 +74,7 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
 
     // TODO : method returns an error if any option other than “trace” is supplied.
     // remove when others options are implemented
-    if (traceTypeParameter.getTraceTypes().contains(TraceTypeParameter.TraceType.STATE_DIFF)
-        || traceTypeParameter.getTraceTypes().contains(TraceTypeParameter.TraceType.VM_TRACE)) {
+    if (traceTypeParameter.getTraceTypes().contains(TraceTypeParameter.TraceType.STATE_DIFF)) {
       LOG.warn("Unsupported trace option");
       throw new InvalidJsonRpcParameters("Invalid trace types supplied.");
     }
@@ -118,8 +120,6 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
                   "transactionHash", transactionTrace.getTransaction().hash().getHexString());
               resultNode.put("output", transactionTrace.getResult().getOutput().toString());
             });
-    resultNode.put("stateDiff", (String) null);
-    resultNode.put("vmTrace", (String) null);
 
     if (traceTypes.contains(TraceTypeParameter.TraceType.TRACE)) {
       formatTraces(
@@ -128,6 +128,14 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
           FlatTraceGenerator::generateFromTransactionTrace,
           traceCounter);
     }
+    if (traceTypes.contains(TraceTypeParameter.TraceType.VM_TRACE)) {
+      traces.forEach(
+          transactionTrace ->
+              resultNode.putPOJO("vmTrace", VmTraceGenerator.generateTrace(transactionTrace)));
+    }
+
+    setEmptyArrayIfNotPresent(resultNode, "trace");
+    setNullNodesIfNotPresent(resultNode, "vmTrace", "stateDiff");
 
     resultArrayNode.add(resultNode);
     return resultArrayNode;
@@ -141,6 +149,22 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
     traces.forEach(
         (transactionTrace) ->
             formatter.format(transactionTrace, traceCounter).forEachOrdered(writer::write));
+  }
+
+  private void setNullNodesIfNotPresent(final ObjectNode parentNode, final String... keys) {
+    Arrays.asList(keys)
+        .forEach(
+            key ->
+                Optional.ofNullable(parentNode.get(key))
+                    .ifPresentOrElse(ignored -> {}, () -> parentNode.put(key, (String) null)));
+  }
+
+  private void setEmptyArrayIfNotPresent(final ObjectNode parentNode, final String... keys) {
+    Arrays.asList(keys)
+        .forEach(
+            key ->
+                Optional.ofNullable(parentNode.get(key))
+                    .ifPresentOrElse(ignored -> {}, () -> parentNode.putArray(key)));
   }
 
   private Object emptyResult() {
