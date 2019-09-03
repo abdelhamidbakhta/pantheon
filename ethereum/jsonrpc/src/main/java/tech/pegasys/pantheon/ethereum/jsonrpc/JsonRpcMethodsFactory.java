@@ -124,7 +124,7 @@ import tech.pegasys.pantheon.ethereum.privacy.markertransaction.PrivateMarkerTra
 import tech.pegasys.pantheon.ethereum.privacy.markertransaction.RandomSigningPrivateMarkerTransactionFactory;
 import tech.pegasys.pantheon.ethereum.transaction.TransactionSimulator;
 import tech.pegasys.pantheon.ethereum.worldstate.WorldStateArchive;
-import tech.pegasys.pantheon.metrics.MetricsSystem;
+import tech.pegasys.pantheon.metrics.ObservableMetricsSystem;
 import tech.pegasys.pantheon.metrics.prometheus.MetricsConfiguration;
 
 import java.math.BigInteger;
@@ -150,7 +150,7 @@ public class JsonRpcMethodsFactory {
       final TransactionPool transactionPool,
       final ProtocolSchedule<?> protocolSchedule,
       final MiningCoordinator miningCoordinator,
-      final MetricsSystem metricsSystem,
+      final ObservableMetricsSystem metricsSystem,
       final Set<Capability> supportedCapabilities,
       final Collection<RpcApi> rpcApis,
       final FilterManager filterManager,
@@ -195,7 +195,7 @@ public class JsonRpcMethodsFactory {
       final FilterManager filterManager,
       final TransactionPool transactionPool,
       final MiningCoordinator miningCoordinator,
-      final MetricsSystem metricsSystem,
+      final ObservableMetricsSystem metricsSystem,
       final Set<Capability> supportedCapabilities,
       final Optional<AccountLocalConfigPermissioningController> accountsWhitelistController,
       final Optional<NodeLocalConfigPermissioningController> nodeWhitelistController,
