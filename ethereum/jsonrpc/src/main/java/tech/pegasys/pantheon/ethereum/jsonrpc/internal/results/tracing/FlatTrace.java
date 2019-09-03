@@ -104,7 +104,6 @@ public class FlatTrace implements Trace {
     private Action action;
 
     private Optional<Action.Builder> actionBuilder = Optional.empty();
-    private Result result;
     private Optional<Result.Builder> resultBuilder = Optional.empty();
     private int subtraces;
     private Integer[] traceAddress = new Integer[0];
@@ -114,11 +113,6 @@ public class FlatTrace implements Trace {
 
     public Builder action(final Action action) {
       this.action = action;
-      return this;
-    }
-
-    public Builder result(final Result result) {
-      this.result = result;
       return this;
     }
 
