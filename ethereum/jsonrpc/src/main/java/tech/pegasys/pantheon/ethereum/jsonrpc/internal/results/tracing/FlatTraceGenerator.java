@@ -42,7 +42,6 @@ public class FlatTraceGenerator {
    */
   public static Stream<Trace> generateFromTransactionTrace(
       final TransactionTrace transactionTrace, final AtomicInteger traceCounter) {
-    transactionTrace.getTraceFrames().forEach(System.out::println);
     final FlatTrace.Builder firstFlatTraceBuilder = FlatTrace.freshBuilder(transactionTrace);
     final String lastContractAddress =
         transactionTrace.getTransaction().getTo().orElse(Address.ZERO).getHexString();

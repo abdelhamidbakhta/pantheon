@@ -138,7 +138,7 @@ public class Action {
           .value(trace.getTransaction().getValue().toShortHexString());
     }
 
-    public Builder incrementGas(long value) {
+    public Builder incrementGas(final long value) {
       this.gas = Gas.fromHexString(gas).plus(Gas.of(value)).toHexString();
       return this;
     }
