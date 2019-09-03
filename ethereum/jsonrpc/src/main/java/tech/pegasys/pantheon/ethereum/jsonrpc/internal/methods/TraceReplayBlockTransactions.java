@@ -129,9 +129,11 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
           traceCounter);
     }
     if (traceTypes.contains(TraceTypeParameter.TraceType.VM_TRACE)) {
-      traces.forEach(
-          transactionTrace ->
-              resultNode.putPOJO("vmTrace", VmTraceGenerator.generateTrace(transactionTrace)));
+      formatTraces(
+          trace -> resultNode.putPOJO("vmTrace", trace),
+          traces,
+          (transactionTrace, ignored) -> VmTraceGenerator.generateTraceStream(transactionTrace),
+          traceCounter);
     }
 
     setEmptyArrayIfNotPresent(resultNode, "trace");
