@@ -160,11 +160,8 @@ public class FlatTrace implements Trace {
       final FlatTrace flatTrace = new FlatTrace();
       flatTrace.setAction(action);
       flatTrace.setAction(actionBuilder.orElseGet(() -> Action.Builder.of(action)).build());
-      if (resultBuilder != null) {
-        flatTrace.setResult(resultBuilder.orElseGet(() -> Result.Builder.of(result)).build());
-      }else{
-        flatTrace.setResult(null);
-      }
+      resultBuilder.ifPresentOrElse(
+          builder -> flatTrace.setResult(builder.build()), () -> flatTrace.setResult(null));
       flatTrace.setSubtraces(subtraces);
       flatTrace.setTraceAddress(traceAddress);
       flatTrace.setType(type);

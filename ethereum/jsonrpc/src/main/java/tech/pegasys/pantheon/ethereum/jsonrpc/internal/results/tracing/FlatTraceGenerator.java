@@ -219,9 +219,7 @@ public class FlatTraceGenerator {
     final Bytes32[] stack = traceFrame.getStack().orElseThrow();
     final Address refundAddress = toAddress(stack[0]);
     final FlatTrace.Builder subTraceBuilder =
-        FlatTrace.builder()
-            .type("suicide")
-            .traceAddress(addressVector.toArray(new Integer[0]));
+        FlatTrace.builder().type("suicide").traceAddress(addressVector.toArray(new Integer[0]));
     final Action.Builder subTraceActionBuilder =
         Action.createSelfDestructAction(
             transaction, lastContractAddress, refundAddress, traceFrame);
