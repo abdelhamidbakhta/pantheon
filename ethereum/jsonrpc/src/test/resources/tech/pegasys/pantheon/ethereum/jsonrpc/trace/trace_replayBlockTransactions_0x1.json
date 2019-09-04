@@ -1,6 +1,5 @@
 {
-  "ignored": true,
-  "request": {
+"request": {
     "jsonrpc": "2.0",
     "method": "trace_replayBlockTransactions",
     "params": [
