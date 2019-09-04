@@ -15,6 +15,7 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
+import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.util.bytes.Bytes32;
@@ -28,9 +29,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.google.common.util.concurrent.Atomics;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -103,10 +106,8 @@ public class FlatTraceGenerator {
     addressVector.add(traceCounter.get());
     final AtomicInteger subTracesCounter = new AtomicInteger(0);
     final AtomicLong cumulativeGasCost = new AtomicLong(0);
-    LOG.info("Result gas remaining: {}", transactionTrace.getResult().getGasRemaining());
     for (TraceFrame traceFrame : transactionTrace.getTraceFrames()) {
       cumulativeGasCost.addAndGet(traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
-      LOG.info("cumulativeGasCost: {}", cumulativeGasCost);
       LOG.info("{} - {}", traceFrame.getOpcode(), traceFrame);
       if ("CALL".equals(traceFrame.getOpcode())) {
         handleCall(
@@ -122,7 +123,6 @@ public class FlatTraceGenerator {
             transactionTrace, traceFrame, smartContractAddress, tracesContexts, cumulativeGasCost);
       } else if ("SELFDESTRUCT".equals(traceFrame.getOpcode())) {
         handleSelfDestruct(
-            transactionTrace.getTransaction(),
             traceFrame,
             lastContractAddress,
             cumulativeGasCost,
@@ -214,7 +214,6 @@ public class FlatTraceGenerator {
   }
 
   private static void handleSelfDestruct(
-      final Transaction transaction,
       final TraceFrame traceFrame,
       final String lastContractAddress,
       final AtomicLong cumulativeGasCost,
@@ -225,9 +224,14 @@ public class FlatTraceGenerator {
     final Address refundAddress = toAddress(stack[0]);
     final FlatTrace.Builder subTraceBuilder =
         FlatTrace.builder().type("suicide").traceAddress(addressVector.toArray(new Integer[0]));
+
+    final AtomicReference<Wei> weiBalance = Atomics.newReference(Wei.ZERO);
+    traceFrame
+        .getMaybeRefunds()
+        .ifPresent(refunds -> weiBalance.set(refunds.getOrDefault(refundAddress, Wei.ZERO)));
+
     final Action.Builder subTraceActionBuilder =
-        Action.createSelfDestructAction(
-            transaction, lastContractAddress, refundAddress, traceFrame);
+        Action.createSelfDestructAction(lastContractAddress, refundAddress, weiBalance.get());
 
     final long gasCost = cumulativeGasCost.longValue();
     // retrieve the previous transactionTrace context

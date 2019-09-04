@@ -15,7 +15,6 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import tech.pegasys.pantheon.ethereum.core.Address;
-import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
@@ -56,11 +55,11 @@ public class Action {
   }
 
   public static Builder createSelfDestructAction(
-      final Transaction transaction,
-      final String lastContractAddress,
-      final Address contractCallAddress,
-      final TraceFrame traceFrame) {
-    return builder().address(lastContractAddress).refundAddress(contractCallAddress.toString());
+      final String lastContractAddress, final Address contractCallAddress, final Wei balance) {
+    return builder()
+        .address(lastContractAddress)
+        .refundAddress(contractCallAddress.toString())
+        .balance(balance.toShortHexString());
   }
 
   public String getCallType() {
