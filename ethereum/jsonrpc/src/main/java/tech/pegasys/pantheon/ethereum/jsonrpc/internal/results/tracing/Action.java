@@ -175,13 +175,8 @@ public class Action {
     public static Builder from(final TransactionTrace trace) {
       return new Builder()
           .from(trace.getTransaction().getSender().getHexString())
-          .gas(Wei.of(trace.getResult().getGasRemaining()).toStrictShortHexString())
+          .gas(trace.getTraceFrames().get(0).getGasRemaining().toHexString())
           .value(trace.getTransaction().getValue().toShortHexString());
-    }
-
-    public Builder incrementGas(final long value) {
-      this.gas = Gas.fromHexString(gas).plus(Gas.of(value)).toHexString();
-      return this;
     }
 
     public Builder callType(final String callType) {

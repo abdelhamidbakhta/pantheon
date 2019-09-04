@@ -31,7 +31,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class FlatTraceGenerator {
+
+  public static final Logger LOG = LogManager.getLogger();
 
   /**
    * Generates a stream of {@link Trace} from the passed {@link TransactionTrace} data.
@@ -98,8 +103,11 @@ public class FlatTraceGenerator {
     addressVector.add(traceCounter.get());
     final AtomicInteger subTracesCounter = new AtomicInteger(0);
     final AtomicLong cumulativeGasCost = new AtomicLong(0);
+    LOG.info("Result gas remaining: {}", transactionTrace.getResult().getGasRemaining());
     for (TraceFrame traceFrame : transactionTrace.getTraceFrames()) {
       cumulativeGasCost.addAndGet(traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
+      LOG.info("cumulativeGasCost: {}", cumulativeGasCost);
+      LOG.info("{} - {}", traceFrame.getOpcode(), traceFrame);
       if ("CALL".equals(traceFrame.getOpcode())) {
         handleCall(
             transactionTrace.getTransaction(),
@@ -110,7 +118,8 @@ public class FlatTraceGenerator {
             tracesContexts,
             subTracesCounter);
       } else if ("RETURN".equals(traceFrame.getOpcode()) || "STOP".equals(traceFrame.getOpcode())) {
-        handleReturn(traceFrame, smartContractAddress, cumulativeGasCost, tracesContexts);
+        handleReturn(
+            transactionTrace, traceFrame, smartContractAddress, tracesContexts, cumulativeGasCost);
       } else if ("SELFDESTRUCT".equals(traceFrame.getOpcode())) {
         handleSelfDestruct(
             transactionTrace.getTransaction(),
@@ -167,10 +176,11 @@ public class FlatTraceGenerator {
   }
 
   private static void handleReturn(
+      final TransactionTrace transactionTrace,
       final TraceFrame traceFrame,
       final Optional<String> smartContractAddress,
-      final AtomicLong cumulativeGasCost,
-      final Deque<FlatTrace.Context> tracesContexts) {
+      final Deque<FlatTrace.Context> tracesContexts,
+      final AtomicLong cumulativeGasCost) {
     final Deque<FlatTrace.Context> polledContexts = new ArrayDeque<>();
     FlatTrace.Context ctx;
     boolean continueToPollContexts = true;
@@ -178,10 +188,11 @@ public class FlatTraceGenerator {
     while (continueToPollContexts && (ctx = tracesContexts.pollLast()) != null) {
       polledContexts.addFirst(ctx);
       if (!ctx.isReturned()) {
+        final long gasUsed = computeGasUsed(transactionTrace, cumulativeGasCost);
         final FlatTrace.Builder flatTraceBuilder = ctx.getBuilder();
         final Result.Builder resultBuilder =
             flatTraceBuilder.getResultBuilder().orElse(Result.builder());
-        resultBuilder.gasUsed(Gas.of(cumulativeGasCost.longValue()).toHexString());
+        resultBuilder.gasUsed(Gas.of(gasUsed).toHexString());
         // set address and type to create if smart contract deployment
         smartContractAddress.ifPresentOrElse(
             address -> {
@@ -200,12 +211,6 @@ public class FlatTraceGenerator {
     }
     // reinsert polled contexts add the end of the queue
     polledContexts.forEach(tracesContexts::addLast);
-    tracesContexts
-        .getFirst()
-        .getBuilder()
-        .getActionBuilder()
-        .ifPresent(actionBuilder -> actionBuilder.incrementGas(cumulativeGasCost.longValue()));
-    cumulativeGasCost.set(0);
   }
 
   private static void handleSelfDestruct(
@@ -243,6 +248,19 @@ public class FlatTraceGenerator {
     // compute transactionTrace addresses
     IntStream.of(subTracesCounter.incrementAndGet()).forEach(addressVector::add);
     cumulativeGasCost.set(0);
+  }
+
+  private static long computeGasUsed(
+      final TransactionTrace transactionTrace, final AtomicLong cumulativeGasCost) {
+    final long firstFrameGasRemaining =
+        transactionTrace.getTraceFrames().get(0).getGasRemaining().toLong();
+    final long gasRemainingAfterTransactionWasProcessed =
+        transactionTrace.getResult().getGasRemaining();
+    if (firstFrameGasRemaining > gasRemainingAfterTransactionWasProcessed) {
+      return firstFrameGasRemaining - gasRemainingAfterTransactionWasProcessed;
+    } else {
+      return cumulativeGasCost.longValue();
+    }
   }
 
   private static Address toAddress(final Bytes32 value) {
