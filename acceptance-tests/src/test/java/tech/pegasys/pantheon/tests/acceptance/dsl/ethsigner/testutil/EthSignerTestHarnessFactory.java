@@ -13,22 +13,26 @@
 package tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.testutil;
 
 import static net.consensys.cava.io.file.Files.copyResource;
-import static tech.pegasys.pantheon.tests.acceptance.dsl.WaitUtils.waitFor;
 
 import tech.pegasys.ethsigner.core.EthSigner;
 import tech.pegasys.ethsigner.core.signing.ConfigurationChainId;
 import tech.pegasys.ethsigner.signer.filebased.CredentialTransactionSigner;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.awaitility.Awaitility;
 import org.web3j.crypto.CipherException;
 import org.web3j.crypto.WalletUtils;
 
@@ -38,11 +42,7 @@ public class EthSignerTestHarnessFactory {
   private static final String HOST = "127.0.0.1";
 
   public static EthSignerTestHarness create(
-      final Path tempDir,
-      final String keyPath,
-      final Integer pantheonPort,
-      final Integer ethsignerPort,
-      final long chainId)
+      final Path tempDir, final String keyPath, final Integer pantheonPort, final long chainId)
       throws IOException, CipherException {
 
     final Path keyFilePath = copyResource(keyPath, tempDir.resolve(keyPath));
@@ -54,7 +54,7 @@ public class EthSignerTestHarnessFactory {
             pantheonPort,
             Duration.ofSeconds(10),
             InetAddress.getByName(HOST),
-            ethsignerPort,
+            0,
             new ConfigurationChainId(chainId),
             tempDir);
 
@@ -65,20 +65,37 @@ public class EthSignerTestHarnessFactory {
                 WalletUtils.loadCredentials("", keyFilePath.toAbsolutePath().toFile())));
     ethSigner.run();
 
-    final OkHttpClient client = new OkHttpClient.Builder().build();
-    final Request request =
-        new Request.Builder()
-            .url("http://" + HOST + ":" + ethsignerPort + "/upcheck")
-            .get()
-            .build();
-
-    waitFor(
-        () -> {
-          client.newCall(request).execute();
-        });
+    waitForPortFile(tempDir);
 
     LOG.info("EthSigner port: {}", config.getHttpListenPort());
 
-    return new EthSignerTestHarness(config);
+    return new EthSignerTestHarness(config, loadPortsFile(tempDir));
+  }
+
+  private static Properties loadPortsFile(final Path tempDir) {
+    final Properties portsProperties = new Properties();
+    try (final FileInputStream fis =
+        new FileInputStream(new File(tempDir.toFile(), "ethsigner.ports"))) {
+      portsProperties.load(fis);
+      LOG.info("Ports for ethsigner {}", portsProperties);
+    } catch (final IOException e) {
+      throw new RuntimeException("Error reading EthSigner ports file", e);
+    }
+    return portsProperties;
+  }
+
+  private static void waitForPortFile(final Path tempDir) {
+    final File file = new File(tempDir.toFile(), "ethsigner.ports");
+    Awaitility.waitAtMost(30, TimeUnit.SECONDS)
+        .until(
+            () -> {
+              if (file.exists()) {
+                try (final Stream<String> s = Files.lines(file.toPath())) {
+                  return s.count() > 0;
+                }
+              } else {
+                return false;
+              }
+            });
   }
 }

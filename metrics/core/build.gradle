@@ -33,6 +33,8 @@ publishing {
 
 
 dependencies {
+  implementation project(':plugins')
+
   implementation 'com.google.guava:guava'
   implementation 'io.prometheus:simpleclient'
   implementation 'io.prometheus:simpleclient_common'

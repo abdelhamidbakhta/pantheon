@@ -13,16 +13,22 @@
 package tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.testutil;
 
 import java.net.URI;
+import java.util.Properties;
 
 public class EthSignerTestHarness {
   private final EthSignerConfig config;
+  private final Properties portsProperties;
 
-  public EthSignerTestHarness(final EthSignerConfig config) {
+  public EthSignerTestHarness(final EthSignerConfig config, final Properties properties) {
     this.config = config;
+    this.portsProperties = properties;
   }
 
   public URI getHttpListeningUrl() {
     return URI.create(
-        "http://" + config.getHttpListenHost().getHostAddress() + ":" + config.getHttpListenPort());
+        "http://"
+            + config.getHttpListenHost().getHostAddress()
+            + ":"
+            + portsProperties.getProperty("http-jsonrpc"));
   }
 }

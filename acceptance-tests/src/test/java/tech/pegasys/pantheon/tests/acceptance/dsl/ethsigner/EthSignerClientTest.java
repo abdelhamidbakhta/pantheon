@@ -12,7 +12,10 @@
  */
 package tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.junit.Assert.assertEquals;
 
 import tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.testutil.EthSignerTestHarness;
@@ -20,13 +23,10 @@ import tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.testutil.EthSignerTe
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.net.HttpURLConnection;
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
 
-import com.sun.net.httpserver.HttpServer;
-import org.junit.AfterClass;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -34,6 +34,11 @@ import org.junit.rules.TemporaryFolder;
 
 public class EthSignerClientTest {
   @ClassRule public static final TemporaryFolder folder = new TemporaryFolder();
+
+  @ClassRule
+  public static final WireMockRule wireMockRule =
+      new WireMockRule(wireMockConfig().dynamicPort().dynamicPort());
+
   private static final String MOCK_RESPONSE = "mock_transaction_hash";
   private static final String MOCK_SEND_TRANSACTION_RESPONSE =
       "{\n"
@@ -49,33 +54,20 @@ public class EthSignerClientTest {
 
   private static EthSignerTestHarness testHarness;
 
-  // The downstream server EthSigner should proxy requests to
-  private static HttpServer mockServer;
-
   @BeforeClass
   public static void setUpOnce() throws Exception {
+    stubFor(post("/").willReturn(aResponse().withBody(MOCK_SEND_TRANSACTION_RESPONSE)));
+
     folder.create();
 
     testHarness =
         EthSignerTestHarnessFactory.create(
             folder.newFolder().toPath(),
             "ethSignerKey--fe3b557e8fb62b89f4916b721be55ceb828dbd73.json",
-            1111,
-            8545,
+            wireMockRule.port(),
             2018);
 
     ethSignerClient = new EthSignerClient(testHarness.getHttpListeningUrl());
-
-    mockServer = HttpServer.create(new InetSocketAddress(1111), 0);
-    mockServer.createContext(
-        "/",
-        exchange -> {
-          byte[] response = MOCK_SEND_TRANSACTION_RESPONSE.getBytes(UTF_8);
-          exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
-          exchange.getResponseBody().write(response);
-          exchange.close();
-        });
-    mockServer.start();
   }
 
   @Test
@@ -110,13 +102,8 @@ public class EthSignerClientTest {
             BigInteger.ZERO,
             ENCLAVE_PUBLIC_KEY,
             Collections.emptyList(),
-            "");
+            "restricted");
 
     assertEquals(MOCK_RESPONSE, response);
-  }
-
-  @AfterClass
-  public static void bringDownOnce() {
-    mockServer.stop(0);
   }
 }
