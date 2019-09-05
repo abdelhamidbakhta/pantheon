@@ -20,6 +20,12 @@ import tech.pegasys.pantheon.ethereum.core.Transaction;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
+import tech.pegasys.pantheon.util.bytes.Bytes32;
+import tech.pegasys.pantheon.util.bytes.BytesValue;
+
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -50,7 +56,7 @@ public class Action {
     return builder()
         .from(lastContractAddress)
         .to(contractCallAddress.toString())
-        .input(traceFrame.getMemory().orElseThrow()[0].getHexString())
+        .input(dumpMemory(traceFrame.getMemory()))
         .gas(gasRemaining.toHexString())
         .callType("call")
         .value(transaction.getValue().toShortHexString());
@@ -62,6 +68,18 @@ public class Action {
         .address(lastContractAddress)
         .refundAddress(contractCallAddress.toString())
         .balance(balance.toShortHexString());
+  }
+
+  private static String dumpMemory(final Optional<Bytes32[]> memory) {
+    return memory
+        .map(
+            element ->
+                "0x"
+                    .concat(
+                        Arrays.stream(element)
+                            .map(BytesValue::toUnprefixedString)
+                            .collect(Collectors.joining())))
+        .orElse("");
   }
 
   public String getCallType() {
