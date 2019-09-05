@@ -13,6 +13,7 @@
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
+import tech.pegasys.pantheon.ethereum.vm.GasCalculator;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -20,5 +21,6 @@ import java.util.stream.Stream;
 @FunctionalInterface
 public interface TraceFormatter {
 
-  Stream<Trace> format(TransactionTrace transactionTrace, AtomicInteger traceCounter);
+  Stream<Trace> format(
+      TransactionTrace transactionTrace, AtomicInteger traceCounter, GasCalculator gasCalculator);
 }

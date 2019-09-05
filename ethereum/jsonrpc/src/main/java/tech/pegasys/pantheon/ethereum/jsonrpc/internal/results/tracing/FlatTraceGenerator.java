@@ -18,6 +18,7 @@ import tech.pegasys.pantheon.ethereum.core.Transaction;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
+import tech.pegasys.pantheon.ethereum.vm.GasCalculator;
 import tech.pegasys.pantheon.util.bytes.Bytes32;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 
@@ -49,7 +50,9 @@ public class FlatTraceGenerator {
    * @return a stream of generated traces {@link Trace}
    */
   public static Stream<Trace> generateFromTransactionTrace(
-      final TransactionTrace transactionTrace, final AtomicInteger traceCounter) {
+      final TransactionTrace transactionTrace,
+      final AtomicInteger traceCounter,
+      final GasCalculator gasCalculator) {
     final FlatTrace.Builder firstFlatTraceBuilder = FlatTrace.freshBuilder(transactionTrace);
     final String lastContractAddress =
         transactionTrace.getTransaction().getTo().orElse(Address.ZERO).getHexString();
@@ -101,11 +104,13 @@ public class FlatTraceGenerator {
     // add the first transactionTrace context to the queue of transactionTrace contexts
     tracesContexts.addLast(new FlatTrace.Context(firstFlatTraceBuilder));
     // declare the first transactionTrace context as the previous transactionTrace context
-    // FlatTrace.Context previousTraceContext = tracesContexts.peekLast();
     final List<Integer> addressVector = new ArrayList<>();
     addressVector.add(traceCounter.get());
     final AtomicInteger subTracesCounter = new AtomicInteger(0);
     final AtomicLong cumulativeGasCost = new AtomicLong(0);
+    LOG.info(
+        "Transaction intrinsic gas cost: {}",
+        gasCalculator.transactionIntrinsicGasCost(transactionTrace.getTransaction()));
     for (TraceFrame traceFrame : transactionTrace.getTraceFrames()) {
       cumulativeGasCost.addAndGet(traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
       LOG.info("{} - {}", traceFrame.getOpcode(), traceFrame);

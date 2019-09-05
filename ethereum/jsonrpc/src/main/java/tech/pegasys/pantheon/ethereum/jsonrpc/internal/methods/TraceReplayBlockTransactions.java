@@ -28,6 +28,7 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.FlatTraceGenerator;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.TraceFormatter;
+import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
 import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
 
 import java.util.List;
@@ -45,13 +46,16 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
   private static final Logger LOG = LogManager.getLogger();
 
   private final BlockTracer blockTracer;
+  private final ProtocolSchedule<?> protocolSchedule;
 
   public TraceReplayBlockTransactions(
       final JsonRpcParameter parameters,
       final BlockTracer blockTracer,
-      final BlockchainQueries queries) {
+      final BlockchainQueries queries,
+      final ProtocolSchedule<?> protocolSchedule) {
     super(queries, parameters);
     this.blockTracer = blockTracer;
+    this.protocolSchedule = protocolSchedule;
   }
 
   @Override
@@ -99,12 +103,14 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
     return blockTracer
         .trace(block, new DebugOperationTracer(traceOptions))
         .map(BlockTrace::getTransactionTraces)
-        .map((traces) -> formatTraces(traces, traceTypeParameter))
+        .map((traces) -> formatTraces(block.getHeader().getNumber(), traces, traceTypeParameter))
         .orElse(null);
   }
 
   private JsonNode formatTraces(
-      final List<TransactionTrace> traces, final TraceTypeParameter traceTypeParameter) {
+      final long blockNumber,
+      final List<TransactionTrace> traces,
+      final TraceTypeParameter traceTypeParameter) {
     final Set<TraceTypeParameter.TraceType> traceTypes = traceTypeParameter.getTraceTypes();
     final ObjectMapper mapper = new ObjectMapper();
     final ArrayNode resultArrayNode = mapper.createArrayNode();
@@ -123,6 +129,7 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
 
     if (traceTypes.contains(TraceTypeParameter.TraceType.TRACE)) {
       formatTraces(
+          blockNumber,
           resultNode.putArray("trace")::addPOJO,
           traces,
           FlatTraceGenerator::generateFromTransactionTrace,
@@ -134,13 +141,19 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
   }
 
   private void formatTraces(
+      final long blockNumber,
       final Trace.ResultWriter writer,
       final List<TransactionTrace> traces,
       final TraceFormatter formatter,
       final AtomicInteger traceCounter) {
     traces.forEach(
         (transactionTrace) ->
-            formatter.format(transactionTrace, traceCounter).forEachOrdered(writer::write));
+            formatter
+                .format(
+                    transactionTrace,
+                    traceCounter,
+                    protocolSchedule.getByBlockNumber(blockNumber).getGasCalculator())
+                .forEachOrdered(writer::write));
   }
 
   private Object emptyResult() {
