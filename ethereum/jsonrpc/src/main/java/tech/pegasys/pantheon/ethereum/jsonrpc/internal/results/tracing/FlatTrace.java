@@ -77,6 +77,7 @@ public class FlatTrace implements Trace {
 
     private Builder builder;
     private boolean returned;
+    private boolean isSubtrace = false;
 
     public Context(final Builder builder) {
       this(builder, false);
@@ -93,6 +94,15 @@ public class FlatTrace implements Trace {
 
     public boolean isReturned() {
       return returned;
+    }
+
+    public boolean isSubtrace() {
+      return isSubtrace;
+    }
+
+    public Context subTrace() {
+      this.isSubtrace = true;
+      return this;
     }
 
     public void markAsReturned() {

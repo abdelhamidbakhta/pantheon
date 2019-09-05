@@ -15,6 +15,7 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import tech.pegasys.pantheon.ethereum.core.Address;
+import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
@@ -44,12 +45,13 @@ public class Action {
       final Transaction transaction,
       final String lastContractAddress,
       final Address contractCallAddress,
-      final TraceFrame traceFrame) {
+      final TraceFrame traceFrame,
+      final Gas gasRemaining) {
     return builder()
         .from(lastContractAddress)
         .to(contractCallAddress.toString())
         .input(traceFrame.getMemory().orElseThrow()[0].getHexString())
-        .gas(traceFrame.getGasRemaining().toHexString())
+        .gas(gasRemaining.toHexString())
         .callType("call")
         .value(transaction.getValue().toShortHexString());
   }
@@ -226,6 +228,10 @@ public class Action {
     public Builder refundAddress(final String refundAddress) {
       this.refundAddress = refundAddress;
       return this;
+    }
+
+    public String getGas() {
+      return gas;
     }
 
     public Action build() {
