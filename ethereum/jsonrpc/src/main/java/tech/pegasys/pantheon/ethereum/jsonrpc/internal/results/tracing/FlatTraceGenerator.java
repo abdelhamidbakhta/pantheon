@@ -30,9 +30,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Atomics;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -104,8 +104,6 @@ public class FlatTraceGenerator {
     tracesContexts.addLast(new FlatTrace.Context(firstFlatTraceBuilder));
     // declare the first transactionTrace context as the previous transactionTrace context
     final List<Integer> addressVector = new ArrayList<>();
-    addressVector.add(traceCounter.get());
-    final AtomicInteger subTracesCounter = new AtomicInteger(0);
     final AtomicLong cumulativeGasCost = new AtomicLong(0);
     final Gas transactionIntrinsicGasCost =
         gasCalculator.transactionIntrinsicGasCost(transactionTrace.getTransaction());
@@ -116,12 +114,6 @@ public class FlatTraceGenerator {
     int traceFrameIndex = 0;
     for (TraceFrame traceFrame : transactionTrace.getTraceFrames()) {
       cumulativeGasCost.addAndGet(traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
-      LOG.info(
-          "{} - {} - {} - {}",
-          traceFrame.getOpcode(),
-          traceFrame.getGasCost().orElse(Gas.ZERO).toLong(),
-          traceFrame.getGasRemaining().toLong(),
-          traceFrame.getGasRemaining().toHexString());
       if ("CALL".equals(traceFrame.getOpcode())) {
         handleCall(
             transactionTrace,
@@ -130,18 +122,12 @@ public class FlatTraceGenerator {
             cumulativeGasCost,
             addressVector,
             tracesContexts,
-            subTracesCounter,
             traceFrameIndex);
       } else if ("RETURN".equals(traceFrame.getOpcode()) || "STOP".equals(traceFrame.getOpcode())) {
         handleReturn(transactionTrace, traceFrame, smartContractAddress, tracesContexts);
       } else if ("SELFDESTRUCT".equals(traceFrame.getOpcode())) {
         handleSelfDestruct(
-            traceFrame,
-            lastContractAddress,
-            cumulativeGasCost,
-            addressVector,
-            tracesContexts,
-            subTracesCounter);
+            traceFrame, lastContractAddress, cumulativeGasCost, addressVector, tracesContexts);
       }
       traceFrameIndex++;
     }
@@ -158,14 +144,17 @@ public class FlatTraceGenerator {
       final AtomicLong cumulativeGasCost,
       final List<Integer> addressVector,
       final Deque<FlatTrace.Context> tracesContexts,
-      final AtomicInteger subTracesCounter,
       final int traceFrameIndex) {
     final Bytes32[] stack = traceFrame.getStack().orElseThrow();
     final Address contractCallAddress = toAddress(stack[stack.length - 2]);
+    if (addressVector.size() <= traceFrame.getDepth()) {
+      addressVector.add(0);
+    } else {
+      addressVector.set(traceFrame.getDepth(), addressVector.get(traceFrame.getDepth()) + 1);
+    }
+    final List<Integer> traceAddress = Lists.newCopyOnWriteArrayList(addressVector);
     final FlatTrace.Builder subTraceBuilder =
-        FlatTrace.builder()
-            .traceAddress(addressVector.toArray(new Integer[0]))
-            .resultBuilder(Result.builder());
+        FlatTrace.builder().traceAddress(traceAddress).resultBuilder(Result.builder());
     // get the next trace frame to set the gas field (gas remaining) of the sub trace
     final TraceFrame traceFrameAfterCall =
         transactionTrace.getTraceFrames().get(traceFrameIndex + 1);
@@ -193,8 +182,6 @@ public class FlatTraceGenerator {
             });
     tracesContexts.addLast(
         new FlatTrace.Context(subTraceBuilder.actionBuilder(subTraceActionBuilder)).subTrace());
-    // compute transactionTrace addresses
-    IntStream.of(subTracesCounter.incrementAndGet()).forEach(addressVector::add);
     cumulativeGasCost.set(0);
   }
 
@@ -251,12 +238,14 @@ public class FlatTraceGenerator {
       final String lastContractAddress,
       final AtomicLong cumulativeGasCost,
       final List<Integer> addressVector,
-      final Deque<FlatTrace.Context> tracesContexts,
-      final AtomicInteger subTracesCounter) {
+      final Deque<FlatTrace.Context> tracesContexts) {
     final Bytes32[] stack = traceFrame.getStack().orElseThrow();
     final Address refundAddress = toAddress(stack[0]);
+    if (addressVector.size() <= traceFrame.getDepth()) {
+      addressVector.add(0);
+    }
     final FlatTrace.Builder subTraceBuilder =
-        FlatTrace.builder().type("suicide").traceAddress(addressVector.toArray(new Integer[0]));
+        FlatTrace.builder().type("suicide").traceAddress(addressVector);
 
     final AtomicReference<Wei> weiBalance = Atomics.newReference(Wei.ZERO);
     traceFrame
@@ -282,8 +271,6 @@ public class FlatTraceGenerator {
             });
     tracesContexts.addLast(
         new FlatTrace.Context(subTraceBuilder.action(subTraceActionBuilder.build())));
-    // compute transactionTrace addresses
-    IntStream.of(subTracesCounter.incrementAndGet()).forEach(addressVector::add);
     cumulativeGasCost.set(0);
   }
 
