@@ -135,8 +135,8 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
         final String expectedResult = expectedResponse.get("result").toString();
         final String actualResult = responseBody.get("result").toString();
         final ObjectMapper mapper = new ObjectMapper();
-        System.err.println(mapper.readTree(actualResult).toString());
-        System.err.println(mapper.readTree(expectedResult).toString());
+        System.err.println("---" + mapper.readTree(actualResult).toString() + "---");
+        System.err.println("+++" + mapper.readTree(expectedResult).toString() + "+++");
         assertThat(mapper.readTree(actualResult)).isEqualTo(mapper.readTree(expectedResult));
       }
 
