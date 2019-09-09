@@ -44,15 +44,6 @@ public class TraceJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpBySpecTest {
 
   @Override
   protected BlockchainSetupUtil<Void> getBlockchainSetupUtil() {
-    try {
-      System.out.printf(
-          "GENESIS: %s%n",
-          Resources.toString(
-              TraceJsonRpcHttpBySpecTest.class.getResource("trace/chain-data/genesis.json"),
-              Charsets.UTF_8));
-    } catch (Exception e) {
-      System.err.println(e.getMessage());
-    }
     return createBlockchainSetupUtil(
         "trace/chain-data/genesis.json", "trace/chain-data/blocks.bin");
   }
