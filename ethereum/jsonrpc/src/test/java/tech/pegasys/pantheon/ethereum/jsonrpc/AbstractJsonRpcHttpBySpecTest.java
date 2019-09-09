@@ -101,7 +101,6 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
   private void jsonRPCCall(final URL specFile) throws IOException {
     final String json = Resources.toString(specFile, Charsets.UTF_8);
     final ObjectNode specNode = (ObjectNode) objectMapper.readTree(json);
-
     final String rawRequestBody = specNode.get("request").toString();
     final RequestBody requestBody = RequestBody.create(JSON, rawRequestBody);
     final Request request = new Request.Builder().post(requestBody).url(baseUrl).build();

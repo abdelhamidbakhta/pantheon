@@ -15,13 +15,15 @@ package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.flat;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class FlatTrace implements Trace {
   private Action action;
   private Result result;
   private int subtraces;
-  private Integer[] traceAddress = new Integer[0];
+  private List<Integer> traceAddress = new ArrayList<>();
   private String type;
 
   public static Builder freshBuilder(final TransactionTrace transactionTrace) {
@@ -54,11 +56,11 @@ public class FlatTrace implements Trace {
     this.subtraces = subtraces;
   }
 
-  public Integer[] getTraceAddress() {
+  public List<Integer> getTraceAddress() {
     return traceAddress;
   }
 
-  public void setTraceAddress(final Integer[] traceAddress) {
+  public void setTraceAddress(final List<Integer> traceAddress) {
     this.traceAddress = traceAddress;
   }
 
@@ -78,6 +80,7 @@ public class FlatTrace implements Trace {
 
     private Builder builder;
     private boolean returned;
+    private boolean isSubtrace = false;
 
     public Context(final Builder builder) {
       this(builder, false);
@@ -96,6 +99,15 @@ public class FlatTrace implements Trace {
       return returned;
     }
 
+    public boolean isSubtrace() {
+      return isSubtrace;
+    }
+
+    public Context subTrace() {
+      this.isSubtrace = true;
+      return this;
+    }
+
     public void markAsReturned() {
       this.returned = true;
     }
@@ -107,7 +119,7 @@ public class FlatTrace implements Trace {
     private Optional<Action.Builder> actionBuilder = Optional.empty();
     private Optional<Result.Builder> resultBuilder = Optional.empty();
     private int subtraces;
-    private Integer[] traceAddress = new Integer[0];
+    private List<Integer> traceAddress = new ArrayList<>();
     private String type = "call";
 
     private Builder() {}
@@ -132,7 +144,7 @@ public class FlatTrace implements Trace {
       return this;
     }
 
-    public Builder traceAddress(final Integer[] traceAddress) {
+    public Builder traceAddress(final List<Integer> traceAddress) {
       this.traceAddress = traceAddress;
       return this;
     }

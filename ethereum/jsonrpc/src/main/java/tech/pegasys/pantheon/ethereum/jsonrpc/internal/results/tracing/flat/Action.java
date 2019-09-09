@@ -20,6 +20,12 @@ import tech.pegasys.pantheon.ethereum.core.Transaction;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
+import tech.pegasys.pantheon.util.bytes.Bytes32;
+import tech.pegasys.pantheon.util.bytes.BytesValue;
+
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -45,22 +51,35 @@ public class Action {
       final Transaction transaction,
       final String lastContractAddress,
       final Address contractCallAddress,
-      final TraceFrame traceFrame) {
+      final TraceFrame traceFrame,
+      final Gas gasRemaining) {
     return builder()
         .from(lastContractAddress)
         .to(contractCallAddress.toString())
-        .input(traceFrame.getMemory().orElseThrow()[0].getHexString())
-        .gas(traceFrame.getGasRemaining().toHexString())
+        .input(dumpMemory(traceFrame.getMemory()))
+        .gas(gasRemaining.toHexString())
         .callType("call")
         .value(transaction.getValue().toShortHexString());
   }
 
   public static Builder createSelfDestructAction(
-      final Transaction transaction,
-      final String lastContractAddress,
-      final Address contractCallAddress,
-      final TraceFrame traceFrame) {
-    return builder().address(lastContractAddress).refundAddress(contractCallAddress.toString());
+      final String lastContractAddress, final Address contractCallAddress, final Wei balance) {
+    return builder()
+        .address(lastContractAddress)
+        .refundAddress(contractCallAddress.toString())
+        .balance(balance.toShortHexString());
+  }
+
+  private static String dumpMemory(final Optional<Bytes32[]> memory) {
+    return memory
+        .map(
+            element ->
+                "0x"
+                    .concat(
+                        Arrays.stream(element)
+                            .map(BytesValue::toUnprefixedString)
+                            .collect(Collectors.joining())))
+        .orElse("");
   }
 
   public String getCallType() {
@@ -175,13 +194,8 @@ public class Action {
     public static Builder from(final TransactionTrace trace) {
       return new Builder()
           .from(trace.getTransaction().getSender().getHexString())
-          .gas(Wei.of(trace.getResult().getGasRemaining()).toStrictShortHexString())
+          .gas(trace.getTraceFrames().get(0).getGasRemaining().toHexString())
           .value(trace.getTransaction().getValue().toShortHexString());
-    }
-
-    public Builder incrementGas(final long value) {
-      this.gas = Gas.fromHexString(gas).plus(Gas.of(value)).toHexString();
-      return this;
     }
 
     public Builder callType(final String callType) {
@@ -232,6 +246,10 @@ public class Action {
     public Builder refundAddress(final String refundAddress) {
       this.refundAddress = refundAddress;
       return this;
+    }
+
+    public String getGas() {
+      return gas;
     }
 
     public Action build() {
