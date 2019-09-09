@@ -23,8 +23,6 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries
 import java.net.URL;
 import java.util.Map;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Resources;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
