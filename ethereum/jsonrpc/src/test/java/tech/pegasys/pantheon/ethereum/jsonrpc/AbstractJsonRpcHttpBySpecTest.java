@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
@@ -104,30 +103,7 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
   private void jsonRPCCall(final URL specFile) throws IOException {
     final String json = Resources.toString(specFile, Charsets.UTF_8);
     final ObjectNode specNode = (ObjectNode) objectMapper.readTree(json);
-
-    System.out.println("********************************************");
-    System.out.printf("Test: %s%n", specName);
-    System.out.printf(
-        "Chain head hash: %s%n",
-        blockchainSetupUtil.getBlockchain().getChainHeadHash().getHexString());
-    System.out.printf(
-        "Genesis: %s%n", blockchainSetupUtil.getBlockchain().getGenesisBlock().toString());
-    final String blockString = ((ArrayNode) specNode.get("request").get("params")).get(0).asText();
-    if (!blockString.equals("pending")
-        && !blockString.equals("earliest")
-        && !blockString.equals("latest")
-        && !(blockString.length() > 4)) {
-      System.out.printf(
-          "Bloc: %s%n",
-          blockchainSetupUtil
-              .getBlockchain()
-              .getBlockHashByNumber(Integer.parseInt(blockString.substring(2), 16))
-              .orElseThrow()
-              .toString());
-    }
-
     final String rawRequestBody = specNode.get("request").toString();
-    System.out.printf("Raw request body: %s%n", rawRequestBody);
     final RequestBody requestBody = RequestBody.create(JSON, rawRequestBody);
     final Request request = new Request.Builder().post(requestBody).url(baseUrl).build();
 
@@ -160,8 +136,6 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
         final String expectedResult = expectedResponse.get("result").toString();
         final String actualResult = responseBody.get("result").toString();
         final ObjectMapper mapper = new ObjectMapper();
-        System.out.printf("---%s---%n", mapper.readTree(actualResult).toString());
-        System.out.printf("+++%s+++%n", mapper.readTree(expectedResult).toString());
         assertThat(mapper.readTree(actualResult)).isEqualTo(mapper.readTree(expectedResult));
       }
 
@@ -173,6 +147,5 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
         assertThat(actualError).isEqualToIgnoringWhitespace(expectedError);
       }
     }
-    System.out.println("********************************************");
   }
 }
