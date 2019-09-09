@@ -118,6 +118,7 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
       final ObjectNode responseBody;
       try {
         responseBody = (ObjectNode) objectMapper.readTree(resp.body().string());
+        System.out.printf("Response body: %s%n", requestBody);
       } catch (Exception e) {
         throw new RuntimeException("Unable to parse response as json object", e);
       }
