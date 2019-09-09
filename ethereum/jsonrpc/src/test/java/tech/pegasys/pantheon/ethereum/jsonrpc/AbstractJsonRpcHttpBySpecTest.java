@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
@@ -106,6 +107,25 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
 
     System.out.println("********************************************");
     System.out.printf("Test: %s%n", specName);
+    System.out.printf(
+        "Chain head hash: %s%n",
+        blockchainSetupUtil.getBlockchain().getChainHeadHash().getHexString());
+    System.out.printf(
+        "Genesis: %s%n", blockchainSetupUtil.getBlockchain().getGenesisBlock().toString());
+    final String blockString = ((ArrayNode) specNode.get("request").get("params")).get(0).asText();
+    if (!blockString.equals("pending")
+        && !blockString.equals("earliest")
+        && !blockString.equals("latest")
+        && !(blockString.length() > 4)) {
+      System.out.printf(
+          "Bloc: %s%n",
+          blockchainSetupUtil
+              .getBlockchain()
+              .getBlockHashByNumber(Integer.parseInt(blockString.substring(2), 16))
+              .orElseThrow()
+              .toString());
+    }
+
     final String rawRequestBody = specNode.get("request").toString();
     System.out.printf("Raw request body: %s%n", rawRequestBody);
     final RequestBody requestBody = RequestBody.create(JSON, rawRequestBody);
