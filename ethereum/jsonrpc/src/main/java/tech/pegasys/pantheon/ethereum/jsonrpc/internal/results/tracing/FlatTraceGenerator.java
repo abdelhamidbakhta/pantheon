@@ -46,6 +46,7 @@ public class FlatTraceGenerator {
    *
    * @param transactionTrace the {@link TransactionTrace} to use
    * @param traceCounter the current trace counter value
+   * @param gasCalculator the {@link GasCalculator} to use
    * @return a stream of generated traces {@link Trace}
    */
   public static Stream<Trace> generateFromTransactionTrace(
