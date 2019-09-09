@@ -42,10 +42,12 @@ import org.junit.runners.Parameterized;
 public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpServiceTest {
 
   private static ObjectMapper objectMapper = new ObjectMapper();
+  private final String specName;
   private final URL specURL;
 
   public AbstractJsonRpcHttpBySpecTest(final String specName, final URL specURL) {
     this.specURL = specURL;
+    this.specName = specName;
   }
 
   @Test
@@ -102,7 +104,10 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
     final String json = Resources.toString(specFile, Charsets.UTF_8);
     final ObjectNode specNode = (ObjectNode) objectMapper.readTree(json);
 
+    System.out.println("********************************************");
+    System.out.printf("Test: %s%n", specName);
     final String rawRequestBody = specNode.get("request").toString();
+    System.out.printf("Raw request body: %s%n", rawRequestBody);
     final RequestBody requestBody = RequestBody.create(JSON, rawRequestBody);
     final Request request = new Request.Builder().post(requestBody).url(baseUrl).build();
 
@@ -135,8 +140,8 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
         final String expectedResult = expectedResponse.get("result").toString();
         final String actualResult = responseBody.get("result").toString();
         final ObjectMapper mapper = new ObjectMapper();
-        System.err.println("---" + mapper.readTree(actualResult).toString() + "---");
-        System.err.println("+++" + mapper.readTree(expectedResult).toString() + "+++");
+        System.err.printf("---%s---%n", mapper.readTree(actualResult).toString());
+        System.err.printf("+++%s+++%n", mapper.readTree(expectedResult).toString());
         assertThat(mapper.readTree(actualResult)).isEqualTo(mapper.readTree(expectedResult));
       }
 
@@ -148,5 +153,6 @@ public abstract class AbstractJsonRpcHttpBySpecTest extends AbstractJsonRpcHttpS
         assertThat(actualError).isEqualToIgnoringWhitespace(expectedError);
       }
     }
+    System.out.println("********************************************");
   }
 }
