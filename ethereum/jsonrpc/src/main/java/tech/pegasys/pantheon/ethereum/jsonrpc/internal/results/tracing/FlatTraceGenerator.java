@@ -70,14 +70,13 @@ public class FlatTraceGenerator {
                     .getHexString())
             : Optional.empty();
     // set code field in result node
-    smartContractCode.ifPresent(firstFlatTraceBuilder.getResultBuilder().orElseThrow()::code);
+    smartContractCode.ifPresent(firstFlatTraceBuilder.getResultBuilder()::code);
     // set init field if transaction is a smart contract deployment
     transactionTrace
         .getTransaction()
         .getInit()
-        .ifPresent(
-            init ->
-                firstFlatTraceBuilder.getActionBuilder().orElseThrow().init(init.getHexString()));
+        .map(BytesValue::getHexString)
+        .ifPresent(firstFlatTraceBuilder.getActionBuilder()::init);
     // set to, input and callType fields if not a smart contract
     transactionTrace
         .getTransaction()
@@ -86,7 +85,6 @@ public class FlatTraceGenerator {
             to ->
                 firstFlatTraceBuilder
                     .getActionBuilder()
-                    .orElseThrow()
                     .to(to.toString())
                     .callType("call")
                     .input(
@@ -178,7 +176,6 @@ public class FlatTraceGenerator {
               previousContext
                   .getBuilder()
                   .getResultBuilder()
-                  .orElse(Result.builder())
                   .gasUsed(Gas.of(gasCost).toHexString());
             });
     tracesContexts.addLast(
@@ -193,42 +190,41 @@ public class FlatTraceGenerator {
       final Deque<FlatTrace.Context> tracesContexts) {
     final Deque<FlatTrace.Context> polledContexts = new ArrayDeque<>();
     FlatTrace.Context ctx;
-    boolean continueToPollContexts = true;
     // find last non returned transactionTrace
-    while (continueToPollContexts && (ctx = tracesContexts.pollLast()) != null) {
+    while ((ctx = tracesContexts.pollLast()) != null) {
       polledContexts.addFirst(ctx);
-      if (!ctx.isReturned()) {
-        final FlatTrace.Builder flatTraceBuilder = ctx.getBuilder();
-        final Gas gasRemainingAtStartOfTrace =
-            Gas.fromHexString(
-                flatTraceBuilder.getActionBuilder().orElse(Action.builder()).getGas());
-        final Gas gasUsed = gasRemainingAtStartOfTrace.minus(traceFrame.getGasRemaining());
-        final Result.Builder resultBuilder =
-            flatTraceBuilder.getResultBuilder().orElse(Result.builder());
-        final Gas finalGasUsed;
-        if (ctx.isSubtrace()) {
-          finalGasUsed = gasUsed;
-        } else {
-          finalGasUsed = computeGasUsed(transactionTrace, gasUsed);
-        }
-
-        // set gas used for the trace
-        resultBuilder.gasUsed(finalGasUsed.toHexString());
-        // set address and type to create if smart contract deployment
-        smartContractAddress.ifPresentOrElse(
-            address -> {
-              resultBuilder.address(address);
-              flatTraceBuilder.type("create");
-            },
-            // set output otherwise
-            () ->
-                resultBuilder.output(
-                    traceFrame.getMemory().isPresent() && traceFrame.getMemory().get().length > 0
-                        ? traceFrame.getMemory().get()[0].toString()
-                        : "0x"));
-        ctx.markAsReturned();
-        continueToPollContexts = false;
+      // continue until finding a non returned context
+      if (ctx.isReturned()) {
+        continue;
       }
+      final FlatTrace.Builder flatTraceBuilder = ctx.getBuilder();
+      final Gas gasRemainingAtStartOfTrace =
+          Gas.fromHexString(flatTraceBuilder.getActionBuilder().getGas());
+      final Gas gasUsed = gasRemainingAtStartOfTrace.minus(traceFrame.getGasRemaining());
+      final Result.Builder resultBuilder = flatTraceBuilder.getResultBuilder();
+      final Gas finalGasUsed;
+      if (ctx.isSubtrace()) {
+        finalGasUsed = gasUsed;
+      } else {
+        finalGasUsed = computeGasUsed(transactionTrace, gasUsed);
+      }
+
+      // set gas used for the trace
+      resultBuilder.gasUsed(finalGasUsed.toHexString());
+      // set address and type to create if smart contract deployment
+      smartContractAddress.ifPresentOrElse(
+          address -> {
+            resultBuilder.address(address);
+            flatTraceBuilder.type("create");
+          },
+          // set output otherwise
+          () ->
+              resultBuilder.output(
+                  traceFrame.getMemory().isPresent() && traceFrame.getMemory().get().length > 0
+                      ? traceFrame.getMemory().get()[0].toString()
+                      : "0x"));
+      ctx.markAsReturned();
+      break;
     }
     // reinsert polled contexts add the end of the queue
     polledContexts.forEach(tracesContexts::addLast);
@@ -258,20 +254,15 @@ public class FlatTraceGenerator {
 
     final long gasCost = cumulativeGasCost.longValue();
     // retrieve the previous transactionTrace context
-    Optional.ofNullable(tracesContexts.peekLast())
-        .ifPresent(
-            previousContext -> {
-              // increment sub traces counter of previous transactionTrace
-              previousContext.getBuilder().incSubTraces();
-              // set gas cost of previous transactionTrace
-              previousContext
-                  .getBuilder()
-                  .getResultBuilder()
-                  .orElse(Result.builder())
-                  .gasUsed(Gas.of(gasCost).toHexString());
-            });
+    if (!tracesContexts.isEmpty()) {
+      FlatTrace.Context previousContext = tracesContexts.peekLast();
+      // increment sub traces counter of previous transactionTrace
+      previousContext.getBuilder().incSubTraces();
+      // set gas cost of previous transactionTrace
+      previousContext.getBuilder().getResultBuilder().gasUsed(Gas.of(gasCost).toHexString());
+    }
     tracesContexts.addLast(
-        new FlatTrace.Context(subTraceBuilder.action(subTraceActionBuilder.build())));
+        new FlatTrace.Context(subTraceBuilder.actionBuilder(subTraceActionBuilder)));
     cumulativeGasCost.set(0);
   }
 

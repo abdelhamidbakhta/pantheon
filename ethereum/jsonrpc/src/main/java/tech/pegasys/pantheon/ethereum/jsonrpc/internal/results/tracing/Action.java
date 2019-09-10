@@ -43,6 +43,29 @@ public class Action {
   private String balance;
   private String refundAddress;
 
+  private Action(
+      final String callType,
+      final String from,
+      final String gas,
+      final String input,
+      final String to,
+      final String init,
+      final String value,
+      final String address,
+      final String balance,
+      final String refundAddress) {
+    this.callType = callType;
+    this.from = from;
+    this.gas = gas;
+    this.input = input;
+    this.to = to;
+    this.init = init;
+    this.value = value;
+    this.address = address;
+    this.balance = balance;
+    this.refundAddress = refundAddress;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -86,80 +109,40 @@ public class Action {
     return callType;
   }
 
-  public void setCallType(final String callType) {
-    this.callType = callType;
-  }
-
   public String getFrom() {
     return from;
-  }
-
-  public void setFrom(final String from) {
-    this.from = from;
   }
 
   public String getGas() {
     return gas;
   }
 
-  public void setGas(final String gas) {
-    this.gas = gas;
-  }
-
   public String getInput() {
     return input;
-  }
-
-  public void setInput(final String input) {
-    this.input = input;
   }
 
   public String getTo() {
     return to;
   }
 
-  public void setTo(final String to) {
-    this.to = to;
-  }
-
   public String getValue() {
     return value;
-  }
-
-  public void setValue(final String value) {
-    this.value = value;
   }
 
   public String getInit() {
     return init;
   }
 
-  public void setInit(final String init) {
-    this.init = init;
-  }
-
   public String getAddress() {
     return address;
-  }
-
-  public void setAddress(final String address) {
-    this.address = address;
   }
 
   public String getBalance() {
     return balance;
   }
 
-  public void setBalance(final String balance) {
-    this.balance = balance;
-  }
-
   public String getRefundAddress() {
     return refundAddress;
-  }
-
-  public void setRefundAddress(final String refundAddress) {
-    this.refundAddress = refundAddress;
   }
 
   public static final class Builder {
@@ -253,18 +236,8 @@ public class Action {
     }
 
     public Action build() {
-      final Action action = new Action();
-      action.setCallType(callType);
-      action.setFrom(from);
-      action.setGas(gas);
-      action.setInput(input);
-      action.setTo(to);
-      action.setInit(init);
-      action.setValue(value);
-      action.setAddress(address);
-      action.setRefundAddress(refundAddress);
-      action.setBalance(balance);
-      return action;
+      return new Action(
+          callType, from, gas, input, to, init, value, address, balance, refundAddress);
     }
   }
 }
