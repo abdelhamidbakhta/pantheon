@@ -17,14 +17,40 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public class FlatTrace implements Trace {
   private Action action;
   private Result result;
   private int subtraces;
-  private List<Integer> traceAddress = new ArrayList<>();
+  private List<Integer> traceAddress;
   private String type;
+
+  private FlatTrace(
+      final Action.Builder actionBuilder,
+      final Result.Builder resultBuilder,
+      final int subtraces,
+      final List<Integer> traceAddress,
+      final String type) {
+    this(
+        actionBuilder != null ? actionBuilder.build() : null,
+        resultBuilder != null ? resultBuilder.build() : null,
+        subtraces,
+        traceAddress,
+        type);
+  }
+
+  private FlatTrace(
+      final Action action,
+      final Result result,
+      final int subtraces,
+      final List<Integer> traceAddress,
+      final String type) {
+    this.action = action;
+    this.result = result;
+    this.subtraces = subtraces;
+    this.traceAddress = traceAddress;
+    this.type = type;
+  }
 
   public static Builder freshBuilder(final TransactionTrace transactionTrace) {
     return FlatTrace.builder()
@@ -36,40 +62,20 @@ public class FlatTrace implements Trace {
     return action;
   }
 
-  public void setAction(final Action action) {
-    this.action = action;
-  }
-
   public Result getResult() {
     return result;
-  }
-
-  public void setResult(final Result result) {
-    this.result = result;
   }
 
   public int getSubtraces() {
     return subtraces;
   }
 
-  public void setSubtraces(final int subtraces) {
-    this.subtraces = subtraces;
-  }
-
   public List<Integer> getTraceAddress() {
     return traceAddress;
   }
 
-  public void setTraceAddress(final List<Integer> traceAddress) {
-    this.traceAddress = traceAddress;
-  }
-
   public String getType() {
     return type;
-  }
-
-  public void setType(final String type) {
-    this.type = type;
   }
 
   public static Builder builder() {
@@ -114,28 +120,22 @@ public class FlatTrace implements Trace {
   }
 
   public static final class Builder {
-    private Action action;
 
-    private Optional<Action.Builder> actionBuilder = Optional.empty();
-    private Optional<Result.Builder> resultBuilder = Optional.empty();
+    private Action.Builder actionBuilder;
+    private Result.Builder resultBuilder;
     private int subtraces;
     private List<Integer> traceAddress = new ArrayList<>();
     private String type = "call";
 
     private Builder() {}
 
-    public Builder action(final Action action) {
-      this.action = action;
-      return this;
-    }
-
     public Builder resultBuilder(final Result.Builder resultBuilder) {
-      this.resultBuilder = Optional.ofNullable(resultBuilder);
+      this.resultBuilder = resultBuilder;
       return this;
     }
 
     public Builder actionBuilder(final Action.Builder actionBuilder) {
-      this.actionBuilder = Optional.ofNullable(actionBuilder);
+      this.actionBuilder = actionBuilder;
       return this;
     }
 
@@ -164,26 +164,14 @@ public class FlatTrace implements Trace {
     }
 
     public FlatTrace build() {
-      final FlatTrace flatTrace = new FlatTrace();
-      flatTrace.setAction(action);
-      flatTrace.setAction(actionBuilder.orElseGet(() -> Action.Builder.of(action)).build());
-      resultBuilder.ifPresentOrElse(
-          builder -> flatTrace.setResult(builder.build()), () -> flatTrace.setResult(null));
-      flatTrace.setSubtraces(subtraces);
-      flatTrace.setTraceAddress(traceAddress);
-      flatTrace.setType(type);
-      return flatTrace;
+      return new FlatTrace(actionBuilder, resultBuilder, subtraces, traceAddress, type);
     }
 
-    public Action getAction() {
-      return action;
-    }
-
-    public Optional<Result.Builder> getResultBuilder() {
+    public Result.Builder getResultBuilder() {
       return resultBuilder;
     }
 
-    public Optional<Action.Builder> getActionBuilder() {
+    public Action.Builder getActionBuilder() {
       return actionBuilder;
     }
   }

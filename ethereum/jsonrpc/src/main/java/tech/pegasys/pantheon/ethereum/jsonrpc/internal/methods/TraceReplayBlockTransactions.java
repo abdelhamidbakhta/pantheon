@@ -25,8 +25,9 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTracer;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.FlatTraceGenerator;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.TraceFormatter;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.TraceWriter;
 import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
 import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
 
@@ -150,7 +151,7 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
 
   private void formatTraces(
       final long blockNumber,
-      final Trace.ResultWriter writer,
+      final TraceWriter writer,
       final List<TransactionTrace> traces,
       final TraceFormatter formatter,
       final AtomicInteger traceCounter) {

@@ -21,38 +21,31 @@ public class Result {
   private String gasUsed;
   private String output;
   private String code;
+
+  public Result(
+      final String gasUsed, final String output, final String code, final String address) {
+    this.gasUsed = gasUsed;
+    this.output = output;
+    this.code = code;
+    this.address = address;
+  }
+
   private String address;
 
   public String getGasUsed() {
     return gasUsed;
   }
 
-  public void setGasUsed(final String gasUsed) {
-    this.gasUsed = gasUsed;
-  }
-
   public String getOutput() {
     return output;
-  }
-
-  public void setOutput(final String output) {
-    this.output = output;
   }
 
   public String getCode() {
     return code;
   }
 
-  public void setCode(final String code) {
-    this.code = code;
-  }
-
   public String getAddress() {
     return address;
-  }
-
-  public void setAddress(final String address) {
-    this.address = address;
   }
 
   public static Builder builder() {
@@ -91,8 +84,8 @@ public class Result {
     public static Builder of(final Result result) {
       final Builder builder = new Builder();
       if (result != null) {
-        builder.output = result.output;
         builder.gasUsed = result.gasUsed;
+        builder.output = result.output;
         builder.code = result.code;
         builder.address = result.address;
       }
@@ -100,12 +93,7 @@ public class Result {
     }
 
     public Result build() {
-      Result result = new Result();
-      result.setGasUsed(gasUsed);
-      result.setOutput(output);
-      result.setCode(code);
-      result.setAddress(address);
-      return result;
+      return new Result(gasUsed, output, code, address);
     }
   }
 }
