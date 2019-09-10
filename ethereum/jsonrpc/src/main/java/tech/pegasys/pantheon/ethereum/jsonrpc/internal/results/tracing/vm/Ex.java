@@ -12,13 +12,20 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.vm;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Ex {
   private Mem mem;
-  private String[] push;
+  private List<String> push;
   private String store;
   private long used;
 
-  public Ex(final Mem mem, final String[] push, final String store, final long used) {
+  public Ex() {
+    push = new ArrayList<>();
+  }
+
+  public Ex(final Mem mem, final List<String> push, final String store, final long used) {
     this.mem = mem;
     this.push = push;
     this.store = store;
@@ -29,31 +36,31 @@ public class Ex {
     return mem;
   }
 
-  public void setMem(final Mem mem) {
-    this.mem = mem;
-  }
-
-  public String[] getPush() {
+  public List<String> getPush() {
     return push;
   }
 
-  public void setPush(final String[] push) {
-    this.push = push;
+  public void addPush(final String value) {
+    push.add(value);
   }
 
   public String getStore() {
     return store;
   }
 
-  public void setStore(final String store) {
-    this.store = store;
-  }
-
   public long getUsed() {
     return used;
   }
 
-  public void setUsed(final long used) {
+  public void setMem(final Mem mem) {
+    this.mem = mem;
+  }
+
+  public void setStore(final String store) {
+    this.store = store;
+  }
+
+  public void setUsed(long used) {
     this.used = used;
   }
 }

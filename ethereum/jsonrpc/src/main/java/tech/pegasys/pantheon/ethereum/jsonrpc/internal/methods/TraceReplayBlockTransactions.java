@@ -25,9 +25,10 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.BlockTracer;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries;
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.FlatTraceGenerator;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.TraceFormatter;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.TraceWriter;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.flat.FlatTraceGenerator;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.vm.VmTraceGenerator;
 import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
 import tech.pegasys.pantheon.ethereum.vm.DebugOperationTracer;
 
@@ -136,9 +137,11 @@ public class TraceReplayBlockTransactions extends AbstractBlockParameterMethod {
     }
     if (traceTypes.contains(TraceTypeParameter.TraceType.VM_TRACE)) {
       formatTraces(
+          blockNumber,
           trace -> resultNode.putPOJO("vmTrace", trace),
           traces,
-          (transactionTrace, ignored) -> VmTraceGenerator.generateTraceStream(transactionTrace),
+          (transactionTrace, ignored, gasCalculatorIgnored) ->
+              VmTraceGenerator.generateTraceStream(transactionTrace),
           traceCounter);
     }
 

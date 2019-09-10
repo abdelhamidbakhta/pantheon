@@ -15,6 +15,7 @@ package tech.pegasys.pantheon.ethereum.debug;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.core.Wei;
+import tech.pegasys.pantheon.ethereum.vm.Code;
 import tech.pegasys.pantheon.ethereum.vm.ExceptionalHaltReason;
 import tech.pegasys.pantheon.util.bytes.Bytes32;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
@@ -39,6 +40,8 @@ public class TraceFrame {
   private final Optional<Map<UInt256, UInt256>> storage;
   private final Optional<BytesValue> revertReason;
   private final Optional<Map<Address, Wei>> maybeRefunds;
+  private final boolean isMemoryWritten;
+  private final Optional<Code> maybeCode;
 
   public TraceFrame(
       final int pc,
@@ -51,7 +54,9 @@ public class TraceFrame {
       final Optional<Bytes32[]> memory,
       final Optional<Map<UInt256, UInt256>> storage,
       final Optional<BytesValue> revertReason,
-      final Optional<Map<Address, Wei>> maybeRefunds) {
+      final Optional<Map<Address, Wei>> maybeRefunds,
+      final boolean isMemoryWritten,
+      final Optional<Code> maybeCode) {
     this.pc = pc;
     this.opcode = opcode;
     this.gasRemaining = gasRemaining;
@@ -63,6 +68,8 @@ public class TraceFrame {
     this.storage = storage;
     this.revertReason = revertReason;
     this.maybeRefunds = maybeRefunds;
+    this.isMemoryWritten = isMemoryWritten;
+    this.maybeCode = maybeCode;
   }
 
   public TraceFrame(
@@ -87,6 +94,8 @@ public class TraceFrame {
         memory,
         storage,
         revertReason,
+        Optional.empty(),
+        false,
         Optional.empty());
   }
 
@@ -110,6 +119,9 @@ public class TraceFrame {
         stack,
         memory,
         storage,
+        Optional.empty(),
+        Optional.empty(),
+        false,
         Optional.empty());
   }
 
@@ -169,6 +181,15 @@ public class TraceFrame {
         .add("stack", stack)
         .add("memory", memory)
         .add("storage", storage)
+        .add("isMemoryWritten", isMemoryWritten)
         .toString();
+  }
+
+  public boolean isMemoryWritten() {
+    return isMemoryWritten;
+  }
+
+  public Optional<Code> getMaybeCode() {
+    return maybeCode;
   }
 }

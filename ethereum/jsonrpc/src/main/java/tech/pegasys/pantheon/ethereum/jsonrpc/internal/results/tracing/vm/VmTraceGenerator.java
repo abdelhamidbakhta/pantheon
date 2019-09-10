@@ -16,7 +16,11 @@ import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
+import tech.pegasys.pantheon.util.bytes.BytesValue;
+import tech.pegasys.pantheon.util.bytes.BytesValues;
 
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class VmTraceGenerator {
@@ -29,15 +33,63 @@ public class VmTraceGenerator {
     final VmTrace vmTrace = new VmTrace();
     if (transactionTrace != null && !transactionTrace.getTraceFrames().isEmpty()) {
       // TODO: set smart contract code
-      vmTrace.setCode("0x");
-      transactionTrace.getTraceFrames().forEach(traceFrame -> addFrame(vmTrace, traceFrame));
+      transactionTrace
+          .getTransaction()
+          .getInit()
+          .map(BytesValue::getHexString)
+          .ifPresent(vmTrace::setCode);
+      final AtomicInteger index = new AtomicInteger(0);
+      transactionTrace
+          .getTraceFrames()
+          .forEach(traceFrame -> addFrame(index, transactionTrace, vmTrace, traceFrame));
     }
     return vmTrace;
   }
 
-  private static void addFrame(final VmTrace vmTrace, final TraceFrame traceFrame) {
+  private static void addFrame(
+      final AtomicInteger index,
+      final TransactionTrace transactionTrace,
+      final VmTrace vmTrace,
+      final TraceFrame traceFrame) {
+    if ("STOP".equals(traceFrame.getOpcode())) {
+      return;
+    }
+    traceFrame.getMaybeCode().ifPresent(code -> vmTrace.setCode(code.getBytes().getHexString()));
+    final int nextFrameIndex = index.get() + 1;
+    final Optional<TraceFrame> maybeNextFrame =
+        transactionTrace.getTraceFrames().size() > nextFrameIndex
+            ? Optional.of(transactionTrace.getTraceFrames().get(nextFrameIndex))
+            : Optional.empty();
     final Op op = new Op();
     op.setCost(traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
+    op.setPc(traceFrame.getPc());
+    final Ex ex = new Ex();
+    ex.setUsed(
+        traceFrame.getGasRemaining().toLong() - traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
+    if (traceFrame.isMemoryWritten()) {
+      maybeNextFrame
+          .flatMap(TraceFrame::getMemory)
+          .ifPresent(
+              memory -> {
+                if (memory.length > 0) {
+                  ex.setMem(new Mem(BytesValues.trimTrailingZeros(memory[0]).getHexString(), 0));
+                }
+              });
+    }
+
+    if ((traceFrame.getOpcode().startsWith("PUSH") || "CALLDATALOAD".equals(traceFrame.getOpcode()))
+        && maybeNextFrame.isPresent()) {
+      maybeNextFrame
+          .get()
+          .getStack()
+          .map(stack -> stack[stack.length - 1])
+          .map(BytesValues::trimLeadingZeros)
+          .ifPresent(push -> ex.addPush(push.isZero() ? "0x0" : push.toShortHexString()));
+    }
+
+    op.setEx(ex);
+
     vmTrace.add(op);
+    index.incrementAndGet();
   }
 }

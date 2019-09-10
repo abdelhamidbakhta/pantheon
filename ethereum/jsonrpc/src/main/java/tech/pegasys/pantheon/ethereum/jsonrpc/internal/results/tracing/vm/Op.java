@@ -31,28 +31,28 @@ public class Op {
     return cost;
   }
 
-  public void setCost(final long cost) {
-    this.cost = cost;
-  }
-
   public Ex getEx() {
     return ex;
-  }
-
-  public void setEx(final Ex ex) {
-    this.ex = ex;
   }
 
   public long getPc() {
     return pc;
   }
 
-  public void setPc(final long pc) {
-    this.pc = pc;
-  }
-
   public String getSub() {
     return sub;
+  }
+
+  public void setCost(final long cost) {
+    this.cost = cost;
+  }
+
+  public void setEx(final Ex ex) {
+    this.ex = ex;
+  }
+
+  public void setPc(final long pc) {
+    this.pc = pc;
   }
 
   public void setSub(final String sub) {

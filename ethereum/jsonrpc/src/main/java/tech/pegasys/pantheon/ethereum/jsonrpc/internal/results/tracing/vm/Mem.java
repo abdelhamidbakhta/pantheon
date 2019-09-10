@@ -13,6 +13,20 @@
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.vm;
 
 public class Mem {
+
   private String data;
   private int off;
+
+  public Mem(final String data, final int off) {
+    this.data = data;
+    this.off = off;
+  }
+
+  public String getData() {
+    return data;
+  }
+
+  public int getOff() {
+    return off;
+  }
 }
