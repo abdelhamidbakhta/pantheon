@@ -101,7 +101,7 @@ public class VmTraceGenerator {
     ex.setStore(
         traceFrame
             .getStack()
-            .map(stack -> new Store(stack[0].toShortHexString(), stack[1].toShortHexString()))
+            .map(stack -> new Store(stack[1].toShortHexString(), stack[0].toShortHexString()))
             .orElseThrow());
   }
 }
