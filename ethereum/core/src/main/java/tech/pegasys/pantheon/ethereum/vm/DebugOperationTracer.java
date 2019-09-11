@@ -74,7 +74,8 @@ public class DebugOperationTracer implements OperationTracer {
               frame.getRevertReason(),
               maybeRefunds,
               frame.isMemoryWritten(),
-              Optional.ofNullable(frame.getCode())));
+              Optional.ofNullable(frame.getCode()),
+              frame.getCurrentOperation().getStackItemsProduced()));
     }
     frame.setMemoryWritten(false);
   }

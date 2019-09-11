@@ -16,19 +16,33 @@ import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
+import tech.pegasys.pantheon.util.bytes.Bytes32;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 import tech.pegasys.pantheon.util.bytes.BytesValues;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class VmTraceGenerator {
 
+  /**
+   * Generate a stream of trace result objects.
+   *
+   * @param transactionTrace the transaction trace to use.
+   * @return a representation of generated traces.
+   */
   public static Stream<Trace> generateTraceStream(final TransactionTrace transactionTrace) {
     return Stream.of(generateTrace(transactionTrace));
   }
 
+  /**
+   * Generate trace representation from the specified transaction trace.
+   *
+   * @param transactionTrace the transaction trace to use.
+   * @return a representation of the trace.
+   */
   public static Trace generateTrace(final TransactionTrace transactionTrace) {
     final VmTrace vmTrace = new VmTrace();
     if (transactionTrace != null && !transactionTrace.getTraceFrames().isEmpty()) {
@@ -46,6 +60,14 @@ public class VmTraceGenerator {
     return vmTrace;
   }
 
+  /**
+   * Add a trace frame to the VmTrace result object.
+   *
+   * @param index index of the current frame in the trace
+   * @param transactionTrace the transaction trace
+   * @param vmTrace the vmTrace object to populate
+   * @param traceFrame the current trace frame
+   */
   private static void addFrame(
       final AtomicInteger index,
       final TransactionTrace transactionTrace,
@@ -54,18 +76,25 @@ public class VmTraceGenerator {
     if ("STOP".equals(traceFrame.getOpcode())) {
       return;
     }
+    // set smart contract if transaction is a contract deployment
     traceFrame.getMaybeCode().ifPresent(code -> vmTrace.setCode(code.getBytes().getHexString()));
     final int nextFrameIndex = index.get() + 1;
+    // retrieve next frame if not last
     final Optional<TraceFrame> maybeNextFrame =
         transactionTrace.getTraceFrames().size() > nextFrameIndex
             ? Optional.of(transactionTrace.getTraceFrames().get(nextFrameIndex))
             : Optional.empty();
     final Op op = new Op();
+    // set gas cost and program counter
     op.setCost(traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
     op.setPc(traceFrame.getPc());
+
     final Ex ex = new Ex();
+    // set gas remaining
     ex.setUsed(
         traceFrame.getGasRemaining().toLong() - traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
+
+    // set memory if memory has been changed by this operation
     if (traceFrame.isMemoryWritten()) {
       maybeNextFrame
           .flatMap(TraceFrame::getMemory)
@@ -77,26 +106,34 @@ public class VmTraceGenerator {
               });
     }
 
-    if ((traceFrame.getOpcode().startsWith("PUSH") || "CALLDATALOAD".equals(traceFrame.getOpcode()))
-        && maybeNextFrame.isPresent()) {
-      maybeNextFrame
-          .get()
-          .getStack()
-          .map(stack -> stack[stack.length - 1])
-          .map(BytesValues::trimLeadingZeros)
-          .ifPresent(push -> ex.addPush(push.isZero() ? "0x0" : push.toShortHexString()));
+    // set push from stack elements if some elements have been produced
+    if (traceFrame.getStackItemsProduced() > 0 && maybeNextFrame.isPresent()) {
+      final Bytes32[] stack = maybeNextFrame.get().getStack().orElseThrow();
+      IntStream.range(0, traceFrame.getStackItemsProduced())
+          .forEach(
+              i -> {
+                final BytesValue value = BytesValues.trimLeadingZeros(stack[stack.length - i - 1]);
+                ex.addPush(value.isEmpty() || value.isZero() ? "0x0" : value.toShortHexString());
+              });
     }
 
+    // set store from the stack
     if ("SSTORE".equals(traceFrame.getOpcode())) {
       handleSstore(traceFrame, ex);
     }
 
+    // add the Op representation to the list of traces
     op.setEx(ex);
-
     vmTrace.add(op);
     index.incrementAndGet();
   }
 
+  /**
+   * Handle SSTORE specific opcode. Retrieve elements the stack (key and value).
+   *
+   * @param traceFrame the trace frame to use.
+   * @param ex the Ex object to populate.
+   */
   private static void handleSstore(final TraceFrame traceFrame, final Ex ex) {
     ex.setStore(
         traceFrame

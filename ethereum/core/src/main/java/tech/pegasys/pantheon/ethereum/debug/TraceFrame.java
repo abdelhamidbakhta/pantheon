@@ -42,6 +42,7 @@ public class TraceFrame {
   private final Optional<Map<Address, Wei>> maybeRefunds;
   private final boolean isMemoryWritten;
   private final Optional<Code> maybeCode;
+  private final int stackItemsProduced;
 
   public TraceFrame(
       final int pc,
@@ -56,7 +57,8 @@ public class TraceFrame {
       final Optional<BytesValue> revertReason,
       final Optional<Map<Address, Wei>> maybeRefunds,
       final boolean isMemoryWritten,
-      final Optional<Code> maybeCode) {
+      final Optional<Code> maybeCode,
+      final int stackItemsProduced) {
     this.pc = pc;
     this.opcode = opcode;
     this.gasRemaining = gasRemaining;
@@ -70,6 +72,7 @@ public class TraceFrame {
     this.maybeRefunds = maybeRefunds;
     this.isMemoryWritten = isMemoryWritten;
     this.maybeCode = maybeCode;
+    this.stackItemsProduced = stackItemsProduced;
   }
 
   public TraceFrame(
@@ -96,7 +99,8 @@ public class TraceFrame {
         revertReason,
         Optional.empty(),
         false,
-        Optional.empty());
+        Optional.empty(),
+        0);
   }
 
   public TraceFrame(
@@ -122,7 +126,8 @@ public class TraceFrame {
         Optional.empty(),
         Optional.empty(),
         false,
-        Optional.empty());
+        Optional.empty(),
+        0);
   }
 
   public int getPc() {
@@ -191,5 +196,9 @@ public class TraceFrame {
 
   public Optional<Code> getMaybeCode() {
     return maybeCode;
+  }
+
+  public int getStackItemsProduced() {
+    return stackItemsProduced;
   }
 }
