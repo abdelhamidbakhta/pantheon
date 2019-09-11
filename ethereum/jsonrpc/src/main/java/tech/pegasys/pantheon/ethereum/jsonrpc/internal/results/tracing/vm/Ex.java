@@ -18,14 +18,14 @@ import java.util.List;
 public class Ex {
   private Mem mem;
   private List<String> push;
-  private String store;
+  private Store store;
   private long used;
 
   public Ex() {
     push = new ArrayList<>();
   }
 
-  public Ex(final Mem mem, final List<String> push, final String store, final long used) {
+  public Ex(final Mem mem, final List<String> push, final Store store, final long used) {
     this.mem = mem;
     this.push = push;
     this.store = store;
@@ -44,7 +44,7 @@ public class Ex {
     push.add(value);
   }
 
-  public String getStore() {
+  public Store getStore() {
     return store;
   }
 
@@ -56,7 +56,7 @@ public class Ex {
     this.mem = mem;
   }
 
-  public void setStore(final String store) {
+  public void setStore(final Store store) {
     this.store = store;
   }
 

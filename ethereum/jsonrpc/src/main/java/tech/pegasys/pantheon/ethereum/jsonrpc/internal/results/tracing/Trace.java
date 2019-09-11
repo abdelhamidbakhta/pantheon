@@ -12,16 +12,15 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing;
 
-import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.flat.FlatTrace;
-
 /**
  * Trace is a marker interface representing different types of Parity style JSON responses for the
  * trace_replayBlockTransactions RPC API. trace_replayBlockTransactions is part of the trace RPC API
  * group. 3 implementations:
  *
  * <ul>
- *   <li>trace: {@link FlatTrace}
- *   <li>vmTrace:
+ *   <li>trace: {@link
+ *       tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.flat.FlatTrace}
+ *   <li>vmTrace: {@link tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.vm.VmTrace}
  *   <li>stateDiff:
  * </ul>
  */

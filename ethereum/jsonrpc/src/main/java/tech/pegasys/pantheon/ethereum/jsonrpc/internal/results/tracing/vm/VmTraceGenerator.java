@@ -87,9 +87,21 @@ public class VmTraceGenerator {
           .ifPresent(push -> ex.addPush(push.isZero() ? "0x0" : push.toShortHexString()));
     }
 
+    if ("SSTORE".equals(traceFrame.getOpcode())) {
+      handleSstore(traceFrame, ex);
+    }
+
     op.setEx(ex);
 
     vmTrace.add(op);
     index.incrementAndGet();
+  }
+
+  private static void handleSstore(final TraceFrame traceFrame, final Ex ex) {
+    ex.setStore(
+        traceFrame
+            .getStack()
+            .map(stack -> new Store(stack[0].toShortHexString(), stack[1].toShortHexString()))
+            .orElseThrow());
   }
 }
