@@ -46,7 +46,6 @@ public class VmTraceGenerator {
   public static Trace generateTrace(final TransactionTrace transactionTrace) {
     final VmTrace vmTrace = new VmTrace();
     if (transactionTrace != null && !transactionTrace.getTraceFrames().isEmpty()) {
-      // TODO: set smart contract code
       transactionTrace
           .getTransaction()
           .getInit()
@@ -76,7 +75,7 @@ public class VmTraceGenerator {
     if ("STOP".equals(traceFrame.getOpcode())) {
       return;
     }
-    // set smart contract if transaction is a contract deployment
+    // set smart contract code
     traceFrame.getMaybeCode().ifPresent(code -> vmTrace.setCode(code.getBytes().getHexString()));
     final int nextFrameIndex = index.get() + 1;
     // retrieve next frame if not last
@@ -109,12 +108,15 @@ public class VmTraceGenerator {
     // set push from stack elements if some elements have been produced
     if (traceFrame.getStackItemsProduced() > 0 && maybeNextFrame.isPresent()) {
       final Bytes32[] stack = maybeNextFrame.get().getStack().orElseThrow();
-      IntStream.range(0, traceFrame.getStackItemsProduced())
-          .forEach(
-              i -> {
-                final BytesValue value = BytesValues.trimLeadingZeros(stack[stack.length - i - 1]);
-                ex.addPush(value.isEmpty() || value.isZero() ? "0x0" : value.toShortHexString());
-              });
+      if (stack != null && stack.length > 0) {
+        IntStream.range(0, traceFrame.getStackItemsProduced())
+            .forEach(
+                i -> {
+                  final BytesValue value =
+                      BytesValues.trimLeadingZeros(stack[stack.length - i - 1]);
+                  ex.addPush(value.isEmpty() || value.isZero() ? "0x0" : value.toShortHexString());
+                });
+      }
     }
 
     // set store from the stack

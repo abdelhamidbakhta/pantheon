@@ -16,11 +16,11 @@ public class Op {
   private long cost;
   private Ex ex;
   private long pc;
-  private String sub;
+  private VmTrace sub;
 
   public Op() {}
 
-  public Op(final long cost, final Ex ex, final long pc, final String sub) {
+  public Op(final long cost, final Ex ex, final long pc, final VmTrace sub) {
     this.cost = cost;
     this.ex = ex;
     this.pc = pc;
@@ -39,7 +39,7 @@ public class Op {
     return pc;
   }
 
-  public String getSub() {
+  public VmTrace getSub() {
     return sub;
   }
 
@@ -55,7 +55,7 @@ public class Op {
     this.pc = pc;
   }
 
-  public void setSub(final String sub) {
+  public void setSub(final VmTrace sub) {
     this.sub = sub;
   }
 }
