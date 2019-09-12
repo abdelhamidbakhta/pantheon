@@ -16,6 +16,7 @@ import tech.pegasys.pantheon.ethereum.core.Gas;
 import tech.pegasys.pantheon.ethereum.debug.TraceFrame;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.processor.TransactionTrace;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
+import tech.pegasys.pantheon.ethereum.vm.Code;
 import tech.pegasys.pantheon.util.bytes.Bytes32;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 import tech.pegasys.pantheon.util.bytes.BytesValues;
@@ -58,9 +59,7 @@ public class VmTraceGenerator {
       final AtomicInteger index = new AtomicInteger(0);
       transactionTrace
           .getTraceFrames()
-          .forEach(
-              traceFrame ->
-                  addFrame(index, transactionTrace, rootVmTrace, traceFrame, parentTraces));
+          .forEach(traceFrame -> addFrame(index, transactionTrace, traceFrame, parentTraces));
     }
     return rootVmTrace;
   }
@@ -70,27 +69,23 @@ public class VmTraceGenerator {
    *
    * @param index index of the current frame in the trace
    * @param transactionTrace the transaction trace
-   * @param rootVmTrace the vmTrace object to populate
    * @param traceFrame the current trace frame
    */
   private static void addFrame(
       final AtomicInteger index,
       final TransactionTrace transactionTrace,
-      final VmTrace rootVmTrace,
       final TraceFrame traceFrame,
       final Deque<VmTrace> parentTraces) {
-    System.out.println(rootVmTrace.getCode());
     if ("STOP".equals(traceFrame.getOpcode())) {
       return;
     }
+
     // boolean addOpToTrace = true;
     VmTrace newSubTrace = null;
     VmTrace currentTrace = parentTraces.getLast();
 
     // set smart contract code
-    traceFrame
-        .getMaybeCode()
-        .ifPresent(code -> currentTrace.setCode(code.getBytes().getHexString()));
+    currentTrace.setCode(traceFrame.getMaybeCode().orElse(new Code()).getBytes().getHexString());
     final int nextFrameIndex = index.get() + 1;
     // retrieve next frame if not last
     final Optional<TraceFrame> maybeNextFrame =
@@ -143,6 +138,10 @@ public class VmTraceGenerator {
     // set store from the stack
     if ("SSTORE".equals(traceFrame.getOpcode())) {
       handleSstore(traceFrame, ex);
+    }
+
+    if ("RETURN".equals(traceFrame.getOpcode())) {
+      currentTrace = parentTraces.removeLast();
     }
 
     // add the Op representation to the list of traces
