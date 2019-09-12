@@ -12,6 +12,10 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.vm;
 
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
+
 public class Op {
   private long cost;
   private Ex ex;
@@ -25,6 +29,12 @@ public class Op {
     this.ex = ex;
     this.pc = pc;
     this.sub = sub;
+  }
+
+  public static long totalGasCost(final Stream<Op> ops) {
+    final AtomicLong total = new AtomicLong(0);
+    ops.forEach(op -> total.addAndGet(op.cost));
+    return total.get();
   }
 
   public long getCost() {
@@ -57,5 +67,10 @@ public class Op {
 
   public void setSub(final VmTrace sub) {
     this.sub = sub;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(cost, ex, pc, sub);
   }
 }

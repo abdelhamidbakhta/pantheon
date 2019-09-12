@@ -16,6 +16,7 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.results.tracing.Trace;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class VmTrace implements Trace {
 
@@ -49,5 +50,10 @@ public class VmTrace implements Trace {
 
   public List<Op> getOps() {
     return ops;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(code, ops);
   }
 }

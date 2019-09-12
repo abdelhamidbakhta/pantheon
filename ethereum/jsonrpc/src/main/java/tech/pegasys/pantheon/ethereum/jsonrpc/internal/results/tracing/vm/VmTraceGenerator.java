@@ -61,7 +61,18 @@ public class VmTraceGenerator {
           .getTraceFrames()
           .forEach(traceFrame -> addFrame(index, transactionTrace, traceFrame, parentTraces));
     }
+
+    rootVmTrace.getOps().forEach(VmTraceGenerator::reduceGasUsed);
     return rootVmTrace;
+  }
+
+  private static void reduceGasUsed(final Op op) {
+    final VmTrace sub = op.getSub();
+    if (sub == null) {
+      return;
+    }
+    op.getEx().setUsed(op.getEx().getUsed() - Op.totalGasCost(sub.getOps().stream()));
+    sub.getOps().forEach(VmTraceGenerator::reduceGasUsed);
   }
 
   /**
