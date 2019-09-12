@@ -12,6 +12,7 @@
  */
 package tech.pegasys.pantheon.tests.web3j.privacy;
 
+import org.junit.Ignore;
 import tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.EthSignerClient;
 import tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.testutil.EthSignerTestHarness;
 import tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.testutil.EthSignerTestHarnessFactory;
@@ -95,6 +96,8 @@ public class EthSignerAcceptanceTest extends PrivacyAcceptanceTestBase {
   // TODO: investigate and fix flaky test
   // re-enable when fixed
   // https://jenkins.pegasys.tech/job/Pantheon/job/master/1629/testReport/junit/tech.pegasys.pantheon.tests.web3j.privacy/EthSignerAcceptanceTest/AcceptanceTests___privateSmartContractMustDeployNoNonce/
+  @Test
+  @Ignore
   public void privateSmartContractMustDeployWithPrivacyGroup() throws IOException {
     final String privacyGroupId =
         minerNode.execute(privacyTransactions.createPrivacyGroup(null, null, minerNode));
