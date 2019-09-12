@@ -755,7 +755,7 @@ public class PantheonCommand implements DefaultCommandValues, Runnable {
     }
   }
 
-  private void addConfigurationService() {
+  public void addConfigurationService() {
     pluginCommonConfiguration = new PantheonConfigurationImpl(dataDir().resolve(DATABASE_PATH));
     pantheonPluginContext.addService(PantheonConfiguration.class, pluginCommonConfiguration);
   }
@@ -1254,7 +1254,7 @@ public class PantheonCommand implements DefaultCommandValues, Runnable {
     return privacyParametersBuilder.build();
   }
 
-  private KeyValueStorageProvider keyStorageProvider(final String name) {
+  public KeyValueStorageProvider keyStorageProvider(final String name) {
     return new KeyValueStorageProviderBuilder()
         .withStorageFactory(storageService.getByName(name))
         .withCommonConfiguration(pluginCommonConfiguration)

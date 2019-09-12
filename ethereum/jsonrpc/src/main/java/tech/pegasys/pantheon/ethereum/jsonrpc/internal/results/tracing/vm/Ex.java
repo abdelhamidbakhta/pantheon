@@ -60,7 +60,7 @@ public class Ex {
     this.store = store;
   }
 
-  public void setUsed(long used) {
+  public void setUsed(final long used) {
     this.used = used;
   }
 }

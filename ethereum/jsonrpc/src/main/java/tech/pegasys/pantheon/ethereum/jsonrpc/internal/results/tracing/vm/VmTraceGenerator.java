@@ -20,6 +20,8 @@ import tech.pegasys.pantheon.util.bytes.Bytes32;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 import tech.pegasys.pantheon.util.bytes.BytesValues;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -44,19 +46,23 @@ public class VmTraceGenerator {
    * @return a representation of the trace.
    */
   public static Trace generateTrace(final TransactionTrace transactionTrace) {
-    final VmTrace vmTrace = new VmTrace();
+    final VmTrace rootVmTrace = new VmTrace();
+    final Deque<VmTrace> parentTraces = new ArrayDeque<>();
+    parentTraces.add(rootVmTrace);
     if (transactionTrace != null && !transactionTrace.getTraceFrames().isEmpty()) {
       transactionTrace
           .getTransaction()
           .getInit()
           .map(BytesValue::getHexString)
-          .ifPresent(vmTrace::setCode);
+          .ifPresent(rootVmTrace::setCode);
       final AtomicInteger index = new AtomicInteger(0);
       transactionTrace
           .getTraceFrames()
-          .forEach(traceFrame -> addFrame(index, transactionTrace, vmTrace, traceFrame));
+          .forEach(
+              traceFrame ->
+                  addFrame(index, transactionTrace, rootVmTrace, traceFrame, parentTraces));
     }
-    return vmTrace;
+    return rootVmTrace;
   }
 
   /**
@@ -64,19 +70,27 @@ public class VmTraceGenerator {
    *
    * @param index index of the current frame in the trace
    * @param transactionTrace the transaction trace
-   * @param vmTrace the vmTrace object to populate
+   * @param rootVmTrace the vmTrace object to populate
    * @param traceFrame the current trace frame
    */
   private static void addFrame(
       final AtomicInteger index,
       final TransactionTrace transactionTrace,
-      final VmTrace vmTrace,
-      final TraceFrame traceFrame) {
+      final VmTrace rootVmTrace,
+      final TraceFrame traceFrame,
+      final Deque<VmTrace> parentTraces) {
+    System.out.println(rootVmTrace.getCode());
     if ("STOP".equals(traceFrame.getOpcode())) {
       return;
     }
+    // boolean addOpToTrace = true;
+    VmTrace newSubTrace = null;
+    VmTrace currentTrace = parentTraces.getLast();
+
     // set smart contract code
-    traceFrame.getMaybeCode().ifPresent(code -> vmTrace.setCode(code.getBytes().getHexString()));
+    traceFrame
+        .getMaybeCode()
+        .ifPresent(code -> currentTrace.setCode(code.getBytes().getHexString()));
     final int nextFrameIndex = index.get() + 1;
     // retrieve next frame if not last
     final Optional<TraceFrame> maybeNextFrame =
@@ -119,6 +133,13 @@ public class VmTraceGenerator {
       }
     }
 
+    if ("CALL".equals(traceFrame.getOpcode())) {
+      newSubTrace = new VmTrace();
+      parentTraces.addLast(newSubTrace);
+      op.setSub(newSubTrace);
+      // addOpToTrace = false;
+    }
+
     // set store from the stack
     if ("SSTORE".equals(traceFrame.getOpcode())) {
       handleSstore(traceFrame, ex);
@@ -126,7 +147,8 @@ public class VmTraceGenerator {
 
     // add the Op representation to the list of traces
     op.setEx(ex);
-    vmTrace.add(op);
+    currentTrace.add(op);
+
     index.incrementAndGet();
   }
 

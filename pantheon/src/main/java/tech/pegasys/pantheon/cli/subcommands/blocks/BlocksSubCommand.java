@@ -13,6 +13,7 @@
 package tech.pegasys.pantheon.cli.subcommands.blocks;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static tech.pegasys.pantheon.cli.DefaultCommandValues.DEFAULT_KEY_VALUE_STORAGE_NAME;
 import static tech.pegasys.pantheon.cli.DefaultCommandValues.MANDATORY_FILE_FORMAT_HELP;
 import static tech.pegasys.pantheon.cli.DefaultCommandValues.MANDATORY_LONG_FORMAT_HELP;
 import static tech.pegasys.pantheon.cli.subcommands.blocks.BlocksSubCommand.COMMAND_NAME;
@@ -176,11 +177,14 @@ public class BlocksSubCommand implements Runnable {
 
     private PantheonController<?> createController() {
       try {
+        parentCommand.parentCommand.addConfigurationService();
         // Set some defaults
         return parentCommand
             .parentCommand
             .getControllerBuilder()
             .miningParameters(getMiningParameters())
+            .storageProvider(
+                parentCommand.parentCommand.keyStorageProvider(DEFAULT_KEY_VALUE_STORAGE_NAME))
             .build();
       } catch (final Exception e) {
         throw new ExecutionException(new CommandLine(parentCommand), e.getMessage(), e);
