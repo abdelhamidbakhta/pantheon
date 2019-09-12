@@ -55,6 +55,7 @@ public class EthSignerAcceptanceTest extends PrivacyAcceptanceTestBase {
   }
 
   @Test
+  @Ignore
   public void privateSmartContractMustDeploy() throws IOException {
     final String transactionHash =
         ethSignerClient.eeaSendTransaction(
@@ -75,6 +76,7 @@ public class EthSignerAcceptanceTest extends PrivacyAcceptanceTestBase {
   }
 
   @Test
+  @Ignore
   public void privateSmartContractMustDeployNoNonce() throws IOException {
     final String transactionHash =
         ethSignerClient.eeaSendTransaction(
@@ -130,6 +132,7 @@ public class EthSignerAcceptanceTest extends PrivacyAcceptanceTestBase {
   }
 
   @Test
+  @Ignore
   public void privateSmartContractMustDeployWithPrivacyGroupNoNonce() throws IOException {
     final String privacyGroupId =
         minerNode.execute(privacyTransactions.createPrivacyGroup(null, null, minerNode));
