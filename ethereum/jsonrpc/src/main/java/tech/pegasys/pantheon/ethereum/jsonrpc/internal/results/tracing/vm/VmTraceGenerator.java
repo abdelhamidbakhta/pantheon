@@ -142,6 +142,7 @@ public class VmTraceGenerator {
     if ("CALL".equals(traceFrame.getOpcode())) {
       newSubTrace = new VmTrace();
       parentTraces.addLast(newSubTrace);
+      ex.addPush("0x1");
       op.setSub(newSubTrace);
       // addOpToTrace = false;
     }
