@@ -12,7 +12,6 @@
  */
 package tech.pegasys.pantheon.tests.web3j.privacy;
 
-import org.junit.Ignore;
 import tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.EthSignerClient;
 import tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.testutil.EthSignerTestHarness;
 import tech.pegasys.pantheon.tests.acceptance.dsl.ethsigner.testutil.EthSignerTestHarnessFactory;
@@ -25,6 +24,7 @@ import java.math.BigInteger;
 import java.util.Collections;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.web3j.protocol.eea.response.PrivateTransactionReceipt;
 import org.web3j.protocol.pantheon.response.privacy.PrivacyGroup;
