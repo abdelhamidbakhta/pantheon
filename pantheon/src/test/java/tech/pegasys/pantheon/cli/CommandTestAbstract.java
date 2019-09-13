@@ -39,13 +39,13 @@ import tech.pegasys.pantheon.controller.PantheonController;
 import tech.pegasys.pantheon.controller.PantheonControllerBuilder;
 import tech.pegasys.pantheon.crypto.SECP256K1.KeyPair;
 import tech.pegasys.pantheon.ethereum.ProtocolContext;
+import tech.pegasys.pantheon.ethereum.api.graphql.GraphQLConfiguration;
+import tech.pegasys.pantheon.ethereum.api.jsonrpc.JsonRpcConfiguration;
+import tech.pegasys.pantheon.ethereum.api.jsonrpc.websocket.WebSocketConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthProtocolManager;
 import tech.pegasys.pantheon.ethereum.eth.sync.BlockBroadcaster;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPoolConfiguration;
-import tech.pegasys.pantheon.ethereum.graphql.GraphQLConfiguration;
-import tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcConfiguration;
-import tech.pegasys.pantheon.ethereum.jsonrpc.websocket.WebSocketConfiguration;
 import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
 import tech.pegasys.pantheon.ethereum.permissioning.PermissioningConfiguration;
 import tech.pegasys.pantheon.ethereum.storage.StorageProvider;
@@ -201,7 +201,7 @@ public abstract class CommandTestAbstract {
     when(mockRunnerBuilder.staticNodes(any())).thenReturn(mockRunnerBuilder);
     when(mockRunnerBuilder.build()).thenReturn(mockRunner);
 
-    when(storageService.getByName("rocksdb")).thenReturn(rocksDBStorageFactory);
+    when(storageService.getByName("rocksdb")).thenReturn(Optional.of(rocksDBStorageFactory));
 
     when(mockPantheonPluginContext.getService(PicoCLIOptions.class))
         .thenReturn(Optional.of(cliOptions));
