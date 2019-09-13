@@ -92,7 +92,7 @@ public class VmTraceGenerator {
     }
 
     // boolean addOpToTrace = true;
-    VmTrace newSubTrace = null;
+    VmTrace newSubTrace;
     VmTrace currentTrace = parentTraces.getLast();
 
     // set smart contract code
@@ -113,8 +113,15 @@ public class VmTraceGenerator {
     ex.setUsed(
         traceFrame.getGasRemaining().toLong() - traceFrame.getGasCost().orElse(Gas.ZERO).toLong());
 
+    final boolean isPreviousFrameReturnOpCode =
+        index.get() != 0
+            ? Optional.ofNullable(transactionTrace.getTraceFrames().get(index.get() - 1))
+                .map(traceFrame1 -> "RETURN".equals(traceFrame1.getOpcode()))
+                .orElse(false)
+            : false;
+
     // set memory if memory has been changed by this operation
-    if (traceFrame.isMemoryWritten()) {
+    if (traceFrame.isMemoryWritten() && !isPreviousFrameReturnOpCode) {
       maybeNextFrame
           .flatMap(TraceFrame::getMemory)
           .ifPresent(
