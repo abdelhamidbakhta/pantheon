@@ -177,15 +177,12 @@ public class BlocksSubCommand implements Runnable {
 
     private PantheonController<?> createController() {
       try {
-        parentCommand.parentCommand.addConfigurationService();
         // Set some defaults
         return parentCommand
-            .parentCommand
-            .getControllerBuilder()
-            .miningParameters(getMiningParameters())
-            .storageProvider(
-                parentCommand.parentCommand.keyStorageProvider(DEFAULT_KEY_VALUE_STORAGE_NAME))
-            .build();
+                .parentCommand
+                .getControllerBuilder()
+                .miningParameters(getMiningParameters())
+                .build();
       } catch (final Exception e) {
         throw new ExecutionException(new CommandLine(parentCommand), e.getMessage(), e);
       }
